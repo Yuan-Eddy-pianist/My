@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Watchdog 日志</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .wrap {
+        width: min(860px, calc(100% - 2rem));
+        margin: 0 auto;
+        padding: 1.5rem 0 3rem;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 0.8rem;
+      }
+      .bar h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        flex: 1;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.35rem 0.5rem;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tr.stall td {
+        background: rgba(179, 53, 74, 0.08);
+        font-weight: 700;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin: 0 0 1rem;
+      }
+      code {
+        background: rgba(34, 51, 31, 0.07);
+        padding: 0 0.3rem;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="bar">
+        <h1>Watchdog 日志</h1>
+        <button class="btn-primary" id="copyBtn" type="button">复制全部</button>
+        <button class="btn-ghost" id="clearBtn" type="button">清空</button>
+      </div>
+      <p class="hint">
+        页面每 5 秒记录一次心跳和事件计数。如果页面再次卡死：<strong>不要关闭标签页</strong>，
+        在地址栏输入 <code>127.0.0.1:8765/app/watchdog.html</code> 回车，然后点"复制全部"把日志发出来。
+        <code>hb</code> 是心跳间隔（ms），远大于 5000 或标红说明主线程被卡住；
+        <code>bcIn/bcOut</code> 暴涨说明广播风暴；<code>pollErr</code> 是服务器请求失败次数。
+      </p>
+      <div class="panel" style="padding: 0.5rem; overflow-x: auto">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>tab</th>
+              <th>hb</th>
+              <th>计数</th>
+              <th>事件</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <script type="module">
+      const KEY = "my.watchdog.v1";
+      let log = [];
+      try {
+        log = JSON.parse(localStorage.getItem(KEY) || "[]");
+      } catch {
+        log = [];
+      }
+      const rows = document.getElementById("rows");
+      const esc = (s) =>
+        String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      rows.innerHTML = log.length
+        ? log
+            .slice()
+            .reverse()
+            .map((e) => {
+              const time = new Date(e.t).toLocaleTimeString("zh-CN", { hour12: false });
+              const counts = Object.entries(e)
+                .filter(([k]) => !["t", "tab", "hb", "ev", "stall"].includes(k))
+                .map(([k, v]) => `${k}:${v}`)
+                .join(" ");
+              const ev = (e.ev || [])
+                .map((x) => `${x.type}${x.data ? `(${esc(x.data)})` : ""}`)
+                .join(" ");
+              return `<tr class="${e.stall ? "stall" : ""}">
+                <td>${time}</td><td>${esc(e.tab || "")}</td><td>${e.hb}</td>
+                <td>${esc(counts)}</td><td>${ev}</td>
+              </tr>`;
+            })
+            .join("")
+        : `<tr><td colspan="5" style="text-align:center;color:var(--muted)">暂无日志</td></tr>`;
+
+      document.getElementById("copyBtn").addEventListener("click", async (e) => {
+        const text = JSON.stringify(log, null, 2);
+        try {
+          await navigator.clipboard.writeText(text);
+          e.target.textContent = "已复制 ✓";
+        } catch {
+          e.target.textContent = "复制失败，请手动全选";
+        }
+        setTimeout(() => (e.target.textContent = "复制全部"), 1500);
+      });
+      document.getElementById("clearBtn").addEventListener("click", () => {
+        localStorage.removeItem(KEY);
+        location.reload();
+      });
+    </script>
+  </body>
+</html>

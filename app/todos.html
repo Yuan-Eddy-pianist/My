@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My · 工作台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand">My</div>
+          <button class="clock-badge" id="clockBadge" type="button">Focus 35:00</button>
+        </div>
+        <div class="topbar-end">
+          <nav class="nav" aria-label="Primary">
+            <a href="./index.html">专注</a>
+            <a class="active" href="./todos.html">工作台</a>
+          </nav>
+          <div class="voice-controls">
+            <button class="btn-mic" id="micBtn" type="button" aria-label="录音">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="9" y="2" width="6" height="12" rx="3" />
+                <path d="M5 10a7 7 0 0 0 14 0" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+            </button>
+            <div class="voice-feedback" aria-live="polite">
+              <div class="mic-meter" id="micMeter" aria-hidden="true"></div>
+              <div class="status" id="status"></div>
+              <div class="transcript" id="transcript" hidden></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-head">
+        <div>
+          <h1>工作台</h1>
+        </div>
+        <button class="btn-ghost" id="refreshBtn" type="button">刷新</button>
+      </div>
+
+      <div id="lists"></div>
+    </div>
+
+    <script type="module">
+      import {
+        $,
+        checkPath,
+        dueMeta,
+        fetchWorkspace,
+        newId,
+        nowIsoLocal,
+        saveWorkspace,
+        setupPomodoro,
+        setupVoice,
+        setupWatchdog,
+      } from "./app.js";
+
+      setupWatchdog();
+      setupPomodoro({ badgeEl: $("#clockBadge") });
+      setupVoice({
+        transcriptEl: $("#transcript"),
+        statusEl: $("#status"),
+        micBtn: $("#micBtn"),
+        meterEl: $("#micMeter"),
+      });
+
+      const listsEl = $("#lists");
+      let state = { projects: [], tasks: [], reminders: [] };
+      let showDoneTasks = false;
+      let showDoneReminders = false;
+      let projectFormOpen = false;
+      let pathHint = "";
+
+      function escapeHtml(s) {
+        return String(s)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function escapeAttr(s) {
+        return escapeHtml(s).replaceAll("'", "&#39;");
+      }
+
+      function sortByDue(items) {
+        return [...items].sort((a, b) => {
+          if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+          const ad = a.due || "9999-99-99";
+          const bd = b.due || "9999-99-99";
+          if (ad !== bd) return ad < bd ? -1 : 1;
+          return (a.title || "").localeCompare(b.title || "");
+        });
+      }
+
+      function sortProjects(items) {
+        const rank = { active: 0, paused: 1, done: 2 };
+        return [...items].sort((a, b) => {
+          const ra = rank[a.status] ?? 9;
+          const rb = rank[b.status] ?? 9;
+          if (ra !== rb) return ra - rb;
+          return (a.title || "").localeCompare(b.title || "");
+        });
+      }
+
+      async function persist() {
+        await saveWorkspace(state);
+      }
+
+      function displayNotes(raw) {
+        const text = String(raw || "")
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line && !/^ASR\s*[：:]/i.test(line))
+          .join("\n")
+          .trim();
+        return text;
+      }
+
+      function checkboxRow(item, { kind }) {
+        const meta = dueMeta(item.due);
+        const noteText = displayNotes(item.notes);
+        const notes = noteText
+          ? `<p class="task-meta">${escapeHtml(noteText)}</p>`
+          : "";
+        const removeBtn =
+          item.status === "done"
+            ? `<button class="btn-ghost btn-tiny btn-remove" type="button" data-remove-kind="${kind}" data-remove-id="${escapeAttr(item.id)}" aria-label="删除">删除</button>`
+            : "";
+        return `
+          <label class="task ${item.status === "done" ? "done" : ""}">
+            <input
+              class="check"
+              type="checkbox"
+              data-kind="${kind}"
+              data-id="${escapeAttr(item.id)}"
+              ${item.status === "done" ? "checked" : ""}
+            />
+            <div>
+              <p class="task-title">${escapeHtml(item.title || "(未命名)")}</p>
+              <p class="task-meta ${meta.kind}">${escapeHtml(meta.text)}</p>
+              ${notes}
+            </div>
+            ${removeBtn || "<div></div>"}
+          </label>
+        `;
+      }
+
+      function projectCard(p) {
+        const status = p.status || "active";
+        const pathOk = p._pathOk;
+        const pathLabel = p.path
+          ? pathOk === false
+            ? "路径无效"
+            : pathOk === true
+              ? "已对齐目录"
+              : "本地目录"
+          : "未设置路径";
+        const pathClass =
+          pathOk === false ? "path-bad" : pathOk === true ? "path-ok" : "";
+        return `
+          <article class="project ${status === "done" ? "done" : ""}" data-id="${escapeAttr(p.id)}">
+            <div class="project-top">
+              <div>
+                <p class="task-title">${escapeHtml(p.title || "(未命名项目)")}</p>
+                <p class="task-meta ${pathClass}">${escapeHtml(pathLabel)}${
+                  p.path ? ` · ${escapeHtml(p.path)}` : ""
+                }</p>
+              </div>
+              <select class="status-select" data-project-status="${escapeAttr(p.id)}" aria-label="项目状态">
+                <option value="active" ${status === "active" ? "selected" : ""}>进行中</option>
+                <option value="paused" ${status === "paused" ? "selected" : ""}>暂停</option>
+                <option value="done" ${status === "done" ? "selected" : ""}>完成</option>
+              </select>
+            </div>
+            ${
+              p.goal
+                ? `<p class="project-goal">${escapeHtml(p.goal)}</p>`
+                : ""
+            }
+            ${
+              p.progress
+                ? `<p class="project-progress">${escapeHtml(p.progress)}</p>`
+                : `<p class="project-progress muted">还没有进度笔记。语音提到这个项目时，agent 会对照目录更新。</p>`
+            }
+          </article>
+        `;
+      }
+
+      function render() {
+        const projects = sortProjects(state.projects);
+        const openTasks = sortByDue(state.tasks.filter((t) => t.status !== "done"));
+        const doneTasks = sortByDue(state.tasks.filter((t) => t.status === "done"));
+        const openReminders = sortByDue(
+          state.reminders.filter((t) => t.status !== "done"),
+        );
+        const doneReminders = sortByDue(
+          state.reminders.filter((t) => t.status === "done"),
+        );
+
+        const projectRows = projects.length
+          ? `<div class="panel list project-list">${projects.map(projectCard).join("")}</div>`
+          : `<div class="panel empty">还没有长期项目。用下方表单添加，并绑到本机项目目录。</div>`;
+
+        const form = projectFormOpen
+          ? `
+            <form class="panel add-form" id="projectForm">
+              <label>
+                <span>项目名称</span>
+                <input name="title" type="text" required placeholder="例如 ScoreDSL" autocomplete="off" />
+              </label>
+              <label>
+                <span>本机目录（绝对路径）</span>
+                <input name="path" type="text" required placeholder="/Users/…/my-project" autocomplete="off" />
+              </label>
+              <label>
+                <span>目标（可选）</span>
+                <input name="goal" type="text" placeholder="这几周想做成什么" autocomplete="off" />
+              </label>
+              <p class="path-hint ${pathHint.startsWith("✓") ? "path-ok" : pathHint ? "path-bad" : ""}" id="pathHint">${escapeHtml(pathHint)}</p>
+              <div class="form-actions">
+                <button class="btn-primary" type="submit">添加项目</button>
+                <button class="btn-ghost" type="button" id="cancelProjectBtn">取消</button>
+              </div>
+            </form>
+          `
+          : "";
+
+        const taskRows = openTasks.length
+          ? `<div class="panel list">${openTasks.map((t) => checkboxRow(t, { kind: "task" })).join("")}</div>`
+          : `<div class="panel empty">没有短期待办。</div>`;
+
+        const doneTaskBlock =
+          doneTasks.length && showDoneTasks
+            ? `<div class="panel list">${doneTasks.map((t) => checkboxRow(t, { kind: "task" })).join("")}</div>`
+            : "";
+
+        const reminderRows = openReminders.length
+          ? `<div class="panel list">${openReminders.map((t) => checkboxRow(t, { kind: "reminder" })).join("")}</div>`
+          : `<div class="panel empty">没有提醒。</div>`;
+
+        const doneReminderBlock =
+          doneReminders.length && showDoneReminders
+            ? `<div class="panel list">${doneReminders.map((t) => checkboxRow(t, { kind: "reminder" })).join("")}</div>`
+            : "";
+
+        listsEl.innerHTML = `
+          <div class="section-head">
+            <p class="section-label">长期项目</p>
+            <button class="btn-ghost btn-tiny" id="toggleProjectForm" type="button">${
+              projectFormOpen ? "收起" : "添加"
+            }</button>
+          </div>
+          ${form}
+          ${projectRows}
+
+          <div class="section-head">
+            <p class="section-label">短期待办</p>
+            ${
+              doneTasks.length
+                ? `<button class="btn-ghost btn-tiny" id="toggleDoneTasks" type="button">${
+                    showDoneTasks ? "隐藏已完成" : `已完成 ${doneTasks.length}`
+                  }</button>`
+                : ""
+            }
+          </div>
+          ${taskRows}
+          ${doneTaskBlock}
+
+          <div class="section-head">
+            <p class="section-label">提醒</p>
+            ${
+              doneReminders.length
+                ? `<button class="btn-ghost btn-tiny" id="toggleDoneReminders" type="button">${
+                    showDoneReminders ? "隐藏已完成" : `已完成 ${doneReminders.length}`
+                  }</button>`
+                : ""
+            }
+          </div>
+          ${reminderRows}
+          ${doneReminderBlock}
+        `;
+
+        bindListEvents();
+      }
+
+      function bindListEvents() {
+        listsEl.querySelectorAll(".check").forEach((el) => {
+          el.addEventListener("change", async () => {
+            const id = el.getAttribute("data-id");
+            const kind = el.getAttribute("data-kind");
+            const list = kind === "reminder" ? state.reminders : state.tasks;
+            const item = list.find((t) => t.id === id);
+            if (!item) return;
+            item.status = el.checked ? "done" : "open";
+            try {
+              await persist();
+              render();
+            } catch (err) {
+              el.checked = !el.checked;
+              alert(err.message || String(err));
+            }
+          });
+        });
+
+        listsEl.querySelectorAll("[data-remove-id]").forEach((el) => {
+          el.addEventListener("click", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = el.getAttribute("data-remove-id");
+            const kind = el.getAttribute("data-remove-kind");
+            const key = kind === "reminder" ? "reminders" : "tasks";
+            const before = state[key];
+            state[key] = before.filter((t) => t.id !== id);
+            try {
+              await persist();
+              render();
+            } catch (err) {
+              state[key] = before;
+              alert(err.message || String(err));
+            }
+          });
+        });
+
+        listsEl.querySelectorAll("[data-project-status]").forEach((el) => {
+          el.addEventListener("change", async () => {
+            const id = el.getAttribute("data-project-status");
+            const project = state.projects.find((p) => p.id === id);
+            if (!project) return;
+            project.status = el.value;
+            project.updated = nowIsoLocal();
+            try {
+              await persist();
+              render();
+            } catch (err) {
+              alert(err.message || String(err));
+              load().catch(() => {});
+            }
+          });
+        });
+
+        const toggleForm = $("#toggleProjectForm");
+        if (toggleForm) {
+          toggleForm.addEventListener("click", () => {
+            projectFormOpen = !projectFormOpen;
+            pathHint = "";
+            render();
+          });
+        }
+
+        const cancel = $("#cancelProjectBtn");
+        if (cancel) {
+          cancel.addEventListener("click", () => {
+            projectFormOpen = false;
+            pathHint = "";
+            render();
+          });
+        }
+
+        const doneTasksBtn = $("#toggleDoneTasks");
+        if (doneTasksBtn) {
+          doneTasksBtn.addEventListener("click", () => {
+            showDoneTasks = !showDoneTasks;
+            render();
+          });
+        }
+
+        const doneRemindersBtn = $("#toggleDoneReminders");
+        if (doneRemindersBtn) {
+          doneRemindersBtn.addEventListener("click", () => {
+            showDoneReminders = !showDoneReminders;
+            render();
+          });
+        }
+
+        const form = $("#projectForm");
+        if (form) {
+          const pathInput = form.querySelector('input[name="path"]');
+          let pathTimer = 0;
+          pathInput?.addEventListener("input", () => {
+            window.clearTimeout(pathTimer);
+            pathTimer = window.setTimeout(async () => {
+              const value = pathInput.value.trim();
+              if (!value) {
+                pathHint = "";
+                const hint = $("#pathHint");
+                if (hint) {
+                  hint.textContent = "";
+                  hint.className = "path-hint";
+                }
+                return;
+              }
+              try {
+                const info = await checkPath(value);
+                pathHint = info.ok
+                  ? `✓ ${info.path}`
+                  : `路径无效：${info.error || "not found"}`;
+                const hint = $("#pathHint");
+                if (hint) {
+                  hint.textContent = pathHint;
+                  hint.className = `path-hint ${info.ok ? "path-ok" : "path-bad"}`;
+                }
+              } catch (err) {
+                pathHint = err.message || String(err);
+              }
+            }, 280);
+          });
+
+          form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const fd = new FormData(form);
+            const title = String(fd.get("title") || "").trim();
+            const path = String(fd.get("path") || "").trim();
+            const goal = String(fd.get("goal") || "").trim();
+            if (!title || !path) return;
+            let info;
+            try {
+              info = await checkPath(path);
+            } catch (err) {
+              alert(err.message || String(err));
+              return;
+            }
+            if (!info.ok) {
+              pathHint = `路径无效：${info.error || "not found"}`;
+              render();
+              return;
+            }
+            const now = nowIsoLocal();
+            state.projects.push({
+              id: newId("proj"),
+              title,
+              path: info.path,
+              status: "active",
+              goal,
+              progress: "",
+              created: now,
+              updated: now,
+            });
+            try {
+              await persist();
+              projectFormOpen = false;
+              pathHint = "";
+              await annotatePaths();
+              render();
+            } catch (err) {
+              state.projects.pop();
+              alert(err.message || String(err));
+            }
+          });
+        }
+      }
+
+      async function annotatePaths() {
+        await Promise.all(
+          state.projects.map(async (p) => {
+            if (!p.path) {
+              p._pathOk = null;
+              return;
+            }
+            try {
+              const info = await checkPath(p.path);
+              p._pathOk = !!info.ok;
+              if (info.ok && info.path !== p.path) p.path = info.path;
+            } catch {
+              p._pathOk = false;
+            }
+          }),
+        );
+      }
+
+      async function load() {
+        state = await fetchWorkspace();
+        await annotatePaths();
+        render();
+      }
+
+      $("#refreshBtn").addEventListener("click", () => {
+        load().catch((err) => alert(err.message || String(err)));
+      });
+
+      load().catch((err) => {
+        listsEl.innerHTML = `<div class="panel empty">无法加载工作台：${escapeHtml(
+          err.message || String(err),
+        )}。serve.py 在运行吗？</div>`;
+      });
+    </script>
+  </body>
+</html>

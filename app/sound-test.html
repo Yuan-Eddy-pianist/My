@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>声音自检</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      .panel {
+        padding: 2rem 2.4rem;
+        text-align: center;
+        max-width: 420px;
+      }
+      .panel h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.3rem;
+      }
+      .panel p {
+        margin: 0.4rem 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+      #result {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <h1>声音自检</h1>
+      <p>点击下面的按钮，应该听到两声提示音（先升后降）。</p>
+      <p>
+        如果完全无声：右键浏览器标签页看是否误点了"网站静音"；或到
+        Chrome 设置 → 隐私和安全 → 网站设置 → 声音，确认本站不在静音列表里。
+      </p>
+      <button class="btn-primary" id="playBtn" type="button">播放测试音</button>
+      <div id="result"></div>
+    </main>
+    <script type="module">
+      import { playChime } from "./app.js";
+      const btn = document.getElementById("playBtn");
+      const result = document.getElementById("result");
+      btn.addEventListener("click", async () => {
+        result.textContent = "";
+        await playChime([660, 880]);
+        await new Promise((r) => setTimeout(r, 500));
+        await playChime([880, 520]);
+        result.textContent = "播放完成。听到了吗？";
+      });
+    </script>
+  </body>
+</html>

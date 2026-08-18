@@ -1,0 +1,14 @@
+data/.agent-status.json
+data/tmp/
+data/todos.json
+data/inbox.md
+data/inbox-archive.md
+data/daily/*
+!data/daily/.gitkeep
+data/weekly/*
+!data/weekly/.gitkeep
+.venv/
+__pycache__/
+.DS_Store
+.env
+.cursor/skill-review/
