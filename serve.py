@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local My server: static UI, local Whisper STT, inbox + Cursor Agent."""
+"""Local My server: static UI, local Whisper STT, inbox + my-agent."""
 
 from __future__ import annotations
 
@@ -45,10 +45,6 @@ def load_dotenv(path: Path = ENV_FILE) -> None:
 
 
 load_dotenv()
-
-
-def cursor_api_key() -> str:
-    return (os.environ.get("CURSOR_API_KEY") or "").strip()
 
 AGENT_PROMPT = """You are the My workspace inbox processor.
 
@@ -423,49 +419,33 @@ def transcribe_audio(raw: bytes, filename: str = "audio.webm") -> str:
             pass
 
 
-def find_agent_cmd() -> list[str] | None:
-    agent = shutil.which("agent")
-    if agent:
-        return [agent]
-    cursor = shutil.which("cursor")
-    if cursor:
-        return [cursor, "agent"]
-    home_agent = Path.home() / ".local" / "bin" / "agent"
-    if home_agent.is_file():
-        return [str(home_agent)]
-    return None
+MY_AGENT_DIR = ROOT / "my-agent"
+MY_AGENT_ENTRY = MY_AGENT_DIR / "dist" / "index.js"
 
 
 def run_agent_once(note_preview: str) -> None:
-    cmd_prefix = find_agent_cmd()
-    if not cmd_prefix:
+    node = shutil.which("node")
+    if not node:
         write_status(
             "error",
-            "Cursor Agent CLI not found. Install/login with `agent login`, then restart serve.py.",
+            "Node.js not found. Install Node, then restart serve.py.",
+            lastNote=note_preview,
+        )
+        return
+    if not MY_AGENT_ENTRY.is_file():
+        write_status(
+            "error",
+            "my-agent not built. Run `cd my-agent && npm install && npm run build`, then restart serve.py.",
             lastNote=note_preview,
         )
         return
 
-    api_key = cursor_api_key()
     write_status(
         "running",
-        "Cursor Agent is updating your workspace…"
-        + (" (using CURSOR_API_KEY from .env)" if api_key else " (CLI login)"),
+        "my-agent is updating your workspace…",
         lastNote=note_preview,
     )
-    cmd = [
-        *cmd_prefix,
-        "-p",
-        "--trust",
-        "--force",
-        "--sandbox",
-        "disabled",
-        "--workspace",
-        str(ROOT),
-    ]
-    if api_key:
-        cmd.extend(["--api-key", api_key])
-    cmd.append(AGENT_PROMPT)
+    cmd = [node, str(MY_AGENT_ENTRY), AGENT_PROMPT]
     try:
         proc = subprocess.run(
             cmd,
@@ -547,7 +527,7 @@ def enqueue_process(note_preview: str) -> dict:
     else:
         status = write_status(
             "queued",
-            "Note saved. Starting Cursor Agent…",
+            "Note saved. Starting my-agent…",
             lastNote=note_preview,
         )
     _job_queue.put(note_preview)
@@ -700,7 +680,7 @@ class Handler(BaseHTTPRequestHandler):
                     "whisperBackend": WHISPER_BACKEND,
                     "whisperModel": WHISPER_MODEL,
                     "appleSilicon": _IS_APPLE_SILICON,
-                    "agent": find_agent_cmd() is not None,
+                    "agent": MY_AGENT_ENTRY.is_file(),
                     "voicePending": _voice_pending,
                 },
             )
@@ -810,21 +790,19 @@ def main() -> None:
     ensure_data()
     # Warm ASR in background so the first voice note is faster.
     threading.Thread(target=warm_asr, name="asr-warmup", daemon=True).start()
-    agent_cmd = find_agent_cmd()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"My is running at http://{HOST}:{PORT}")
     accel = "MLX/Metal GPU" if WHISPER_BACKEND == "mlx" else "CPU (faster-whisper)"
     print(
         f"Voice ASR: backend={WHISPER_BACKEND} model={WHISPER_MODEL} ({accel})"
     )
-    if agent_cmd:
-        print(f"Auto-process via: {' '.join(agent_cmd)}")
-        if cursor_api_key():
-            print("Agent auth: CURSOR_API_KEY from .env (overrides CLI login)")
-        else:
-            print("Agent auth: CLI login (set CURSOR_API_KEY in .env to use another account)")
+    if MY_AGENT_ENTRY.is_file():
+        print(f"Auto-process via: node {MY_AGENT_ENTRY}")
     else:
-        print("WARNING: Cursor Agent CLI not found — transcription will still work.")
+        print(
+            "WARNING: my-agent not built — transcription will still work. "
+            "Build it with `cd my-agent && npm install && npm run build`."
+        )
     try:
         server.serve_forever()
     except KeyboardInterrupt:

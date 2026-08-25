@@ -1,56 +1,104 @@
 /**
- * LLM 接口层 —— 目前只是占位，等你接入具体的模型配置。
+ * LLM 接口层。
  *
- * pi-ai 提供了统一的多 provider 模型句柄，典型用法：
+ * 默认走本地 vLLM（OpenAI-compatible chat completions）：
+ *   http://127.0.0.1:8000/v1 ，模型 id 从 /v1/models 自动探测（默认 deepseek-v4-flash）。
+ * 本地 vLLM 不校验 key，返回占位 "EMPTY" 即可。
+ *
+ * 如需换成其他 provider（如 OpenRouter），用 pi-ai 的 getModel()：
  *
  *   import { getModel } from "@mariozechner/pi-ai";
- *   const model = getModel("anthropic", "claude-sonnet-4-5");
- *   // 或 getModel("openai", "gpt-5"), getModel("google", "gemini-2.5-pro") ...
- *
- * 接入时只需实现 createModel()，返回 pi-ai 的 Model 即可，
- * agent / CLI 侧不需要改动。
+ *   const model = getModel("openrouter", "anthropic/claude-sonnet-4.5");
+ *   // key 由 agent.ts 里的 getApiKey 注入（读 AGENT_LLM_API_KEY / my-agent/.env）
  */
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Model } from "@mariozechner/pi-ai";
+
 export interface LlmConfig {
-  /** provider 名称，如 "anthropic" | "openai" | "google" | "groq" ... */
+  /** provider 名称（本地 vLLM 时为 "vllm-local"） */
   provider: string;
-  /** 模型 id，如 "claude-sonnet-4-5" */
+  /** 模型 id */
   model: string;
-  /** API key（也可以交给 pi-ai 读环境变量，如 ANTHROPIC_API_KEY） */
+  /** API key（本地 vLLM 不需要，留空即可） */
   apiKey?: string;
-  /** 自定义 base URL（自建网关 / 代理时用到） */
+  /** OpenAI-compatible base URL */
   baseUrl?: string;
+  /** 上下文窗口 */
+  contextWindow?: number;
+  /** 最大输出 token */
+  maxTokens?: number;
 }
 
-/** 从环境变量读取默认配置（可被 CLI 参数覆盖） */
+const DEFAULTS: LlmConfig = {
+  provider: "vllm-local",
+  model: "deepseek-v4-flash",
+  baseUrl: "http://127.0.0.1:8000/v1",
+  contextWindow: 131072,
+  maxTokens: 8192,
+};
+
+/** 轻量 .env 读取（my-agent/.env），不覆盖已有环境变量 */
+function loadDotEnv(): void {
+  const envPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../.env",
+  );
+  if (!fs.existsSync(envPath)) return;
+  for (const raw of fs.readFileSync(envPath, "utf8").split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#") || !line.includes("=")) continue;
+    const idx = line.indexOf("=");
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim().replace(/^['"]|['"]$/g, "");
+    if (key && !(key in process.env)) process.env[key] = value;
+  }
+}
+
+/** 从环境变量读取配置（缺省回落到本地 vLLM 默认值） */
 export function loadLlmConfig(): LlmConfig {
+  loadDotEnv();
   return {
-    provider: process.env.AGENT_LLM_PROVIDER ?? "",
-    model: process.env.AGENT_LLM_MODEL ?? "",
+    provider: process.env.AGENT_LLM_PROVIDER ?? DEFAULTS.provider,
+    model: process.env.AGENT_LLM_MODEL ?? DEFAULTS.model,
     apiKey: process.env.AGENT_LLM_API_KEY,
-    baseUrl: process.env.AGENT_LLM_BASE_URL,
+    baseUrl: process.env.AGENT_LLM_BASE_URL ?? DEFAULTS.baseUrl,
+    contextWindow: process.env.AGENT_LLM_CONTEXT_WINDOW
+      ? Number(process.env.AGENT_LLM_CONTEXT_WINDOW)
+      : DEFAULTS.contextWindow,
+    maxTokens: process.env.AGENT_LLM_MAX_TOKENS
+      ? Number(process.env.AGENT_LLM_MAX_TOKENS)
+      : DEFAULTS.maxTokens,
   };
 }
 
 /**
- * TODO: 接入 LLM。
- *
- * 参考实现（取消注释并按需调整）：
- *
- *   import { getModel, type Model } from "@mariozechner/pi-ai";
- *
- *   export function createModel(config: LlmConfig = loadLlmConfig()): Model<any> {
- *     if (!config.provider || !config.model) {
- *       throw new Error("请设置 AGENT_LLM_PROVIDER 和 AGENT_LLM_MODEL");
- *     }
- *     const model = getModel(config.provider as any, config.model as any);
- *     // 如需自定义 apiKey / baseUrl，可在这里覆盖 model 的对应字段
- *     return model;
- *   }
+ * 创建模型句柄。当前实现：本地 vLLM（OpenAI-compatible）。
+ * 换远端 provider 时在这里改为 getModel(provider, modelId)。
  */
-export function createModel(_config: LlmConfig = loadLlmConfig()): never {
-  throw new Error(
-    "[my-agent] LLM 接口尚未接入：请在 src/llm/index.ts 的 createModel() 中 " +
-      "用 pi-ai 的 getModel() 返回模型句柄（文件内有参考实现注释）。",
-  );
+export function createModel(
+  config: LlmConfig = loadLlmConfig(),
+): Model<"openai-completions"> {
+  if (!config.baseUrl) {
+    throw new Error("[my-agent] 缺少 baseUrl：请设置 AGENT_LLM_BASE_URL");
+  }
+  return {
+    id: config.model,
+    name: `${config.model} (${config.provider})`,
+    api: "openai-completions",
+    provider: config.provider,
+    baseUrl: config.baseUrl,
+    reasoning: false,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: config.contextWindow ?? 131072,
+    maxTokens: config.maxTokens ?? 8192,
+  };
+}
+
+/** 提供给 Agent 的 getApiKey：本地 vLLM 不需要 key，返回占位值 */
+export function resolveApiKey(config: LlmConfig = loadLlmConfig()): string {
+  return config.apiKey ?? "EMPTY";
 }

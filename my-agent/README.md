@@ -9,10 +9,15 @@ src/
   index.ts        CLI 入口（交互 REPL / 单次提问）
   agent.ts        Agent 装配：system prompt + model + tools
   llm/index.ts    LLM 接口层（⚠️ 占位，待接入 —— 见文件内参考实现注释）
-  tools/          自定义工具（name + description + TypeBox 参数 + execute）
+  tools/          工具注册表：pi-coding-agent 的 read/write/edit/bash/grep/find/ls + 自定义工具
     echo.ts       示例工具
-    index.ts      工具注册表
+    index.ts      注册表（工作目录 = AGENT_WORKSPACE 或进程 cwd，serve.py 会设为 My 根目录）
 ```
+
+## 与语音通道的集成
+
+`serve.py`（My 根目录）收到语音 → 本地 Whisper 转文字 → 调用
+`node my-agent/dist/index.js <prompt>` 处理 inbox。改动后需重启 serve.py 生效。
 
 ## 运行
 
