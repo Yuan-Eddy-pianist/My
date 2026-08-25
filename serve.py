@@ -87,7 +87,31 @@ Voice notes land here and are processed automatically.
 9. Reply with one short line summarizing what you changed, or "No clear items; archived only."
 """
 
-_job_queue: queue.Queue[str | None] = queue.Queue()
+PROGRESS_PROMPT = """You are the My workspace project progress updater.
+
+Workspace file: data/todos.json has a "projects" array; each project has:
+id, title, path (absolute local directory), status, goal, progress, created, updated.
+
+For each project where status == "active":
+1. If path exists and is a git repo, inspect recent activity with git -C <path>:
+   - git -C <path> log --since="7 days ago" --oneline --decorate
+   - git -C <path> status --short
+2. Write one concise progress entry for today (prefix with today's date, e.g.
+   "2026-08-25：…"), summarizing real changes: new commits, work in progress,
+   or "本周无改动" if nothing happened. Ground every claim in git output — never invent.
+3. Prepend the new entry to the project's "progress" (keep at most the 5 most recent
+   dated entries, drop older ones) and set "updated" to today's ISO date.
+4. Skip projects whose path is missing or not a git repo; if it previously had progress,
+   append a short note that the path is unavailable.
+
+Rules:
+- Only modify data/todos.json (projects array). Do not touch tasks/reminders,
+  app/, serve.py, schedule/, or any project directory.
+- Do not ask questions. Write pretty JSON (2-space indent).
+- Reply with one short line per project: title + what changed.
+"""
+
+_job_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
 _voice_queue: queue.Queue[dict | None] = queue.Queue()
 _status_lock = threading.Lock()
 _worker_started = False
@@ -423,7 +447,7 @@ MY_AGENT_DIR = ROOT / "my-agent"
 MY_AGENT_ENTRY = MY_AGENT_DIR / "dist" / "index.js"
 
 
-def run_agent_once(note_preview: str) -> None:
+def run_agent_once(note_preview: str, prompt: str = AGENT_PROMPT) -> None:
     node = shutil.which("node")
     if not node:
         write_status(
@@ -445,7 +469,7 @@ def run_agent_once(note_preview: str) -> None:
         "my-agent is updating your workspace…",
         lastNote=note_preview,
     )
-    cmd = [node, str(MY_AGENT_ENTRY), AGENT_PROMPT]
+    cmd = [node, str(MY_AGENT_ENTRY), prompt]
     try:
         proc = subprocess.run(
             cmd,
@@ -489,12 +513,14 @@ def run_agent_once(note_preview: str) -> None:
 
 def worker_loop() -> None:
     while True:
-        note_preview = _job_queue.get()
-        if note_preview is None:
+        item = _job_queue.get()
+        if item is None:
             _job_queue.task_done()
             break
         try:
-            latest = note_preview
+            # Coalesce queued jobs by prompt: inbox and progress jobs are both
+            # idempotent, so only the latest of each kind needs to run.
+            jobs: dict[str, tuple[str, str]] = {item[1]: item}
             while True:
                 try:
                     nxt = _job_queue.get_nowait()
@@ -502,15 +528,22 @@ def worker_loop() -> None:
                     break
                 if nxt is None:
                     _job_queue.task_done()
+                    for job in jobs.values():
+                        run_agent_once(*job)
                     return
-                latest = nxt
+                jobs[nxt[1]] = nxt
                 _job_queue.task_done()
-            run_agent_once(latest)
+            for job in jobs.values():
+                run_agent_once(*job)
         finally:
             _job_queue.task_done()
 
 
-def enqueue_process(note_preview: str) -> dict:
+def enqueue_process(
+    note_preview: str,
+    prompt: str = AGENT_PROMPT,
+    running_msg: str = "Note saved. Starting my-agent…",
+) -> dict:
     global _worker_started
     if not _worker_started:
         t = threading.Thread(target=worker_loop, name="my-agent-worker", daemon=True)
@@ -527,12 +560,40 @@ def enqueue_process(note_preview: str) -> dict:
     else:
         status = write_status(
             "queued",
-            "Note saved. Starting my-agent…",
+            running_msg,
             lastNote=note_preview,
         )
-    _job_queue.put(note_preview)
+    _job_queue.put((note_preview, prompt))
     status["queueDepth"] = pending + 1
     return status
+
+
+PROGRESS_HOUR = int(os.environ.get("MY_PROGRESS_HOUR", "18"))
+PROGRESS_MINUTE = int(os.environ.get("MY_PROGRESS_MINUTE", "0"))
+
+
+def enqueue_progress() -> dict:
+    """Enqueue a project-progress git inspection job (daily schedule or manual)."""
+    return enqueue_process(
+        "每日项目进度巡检",
+        prompt=PROGRESS_PROMPT,
+        running_msg="my-agent 正在巡检项目 git 改动…",
+    )
+
+
+def progress_scheduler_loop() -> None:
+    """Fire a progress job once per day at PROGRESS_HOUR:PROGRESS_MINUTE local time."""
+    last_fired: str | None = None
+    while True:
+        now = datetime.now()
+        today = now.date().isoformat()
+        if (now.hour, now.minute) >= (PROGRESS_HOUR, PROGRESS_MINUTE) and last_fired != today:
+            last_fired = today
+            try:
+                enqueue_progress()
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+        threading.Event().wait(30)
 
 
 def append_inbox_and_process(text: str) -> dict:
@@ -751,6 +812,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(200, {"ok": True, "appended": text})
             return
 
+        if path == "/api/progress":
+            self._send_json(200, enqueue_progress())
+            return
+
         self._send_json(404, {"ok": False, "error": "not found"})
 
     def do_PUT(self) -> None:
@@ -790,11 +855,19 @@ def main() -> None:
     ensure_data()
     # Warm ASR in background so the first voice note is faster.
     threading.Thread(target=warm_asr, name="asr-warmup", daemon=True).start()
+    # Daily project-progress git inspection.
+    threading.Thread(
+        target=progress_scheduler_loop, name="progress-scheduler", daemon=True
+    ).start()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"My is running at http://{HOST}:{PORT}")
     accel = "MLX/Metal GPU" if WHISPER_BACKEND == "mlx" else "CPU (faster-whisper)"
     print(
         f"Voice ASR: backend={WHISPER_BACKEND} model={WHISPER_MODEL} ({accel})"
+    )
+    print(
+        f"Project progress check: daily at {PROGRESS_HOUR:02d}:{PROGRESS_MINUTE:02d} "
+        "(override with MY_PROGRESS_HOUR/MY_PROGRESS_MINUTE)"
     )
     if MY_AGENT_ENTRY.is_file():
         print(f"Auto-process via: node {MY_AGENT_ENTRY}")
