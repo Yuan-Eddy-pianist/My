@@ -28,6 +28,12 @@ async function main() {
 
   if (oneShot) {
     await agent.prompt(oneShot);
+    // LLM 调用失败（如本地 vLLM 不在线）时 agent 不抛异常，
+    // 错误在 agent.state.errorMessage —— 必须显式透出并以非零退出。
+    if (agent.state.errorMessage) {
+      console.error(`\n[error] LLM 调用失败: ${agent.state.errorMessage}`);
+      process.exit(1);
+    }
     return;
   }
 
@@ -44,6 +50,9 @@ async function main() {
     try {
       process.stdout.write("agent: ");
       await agent.prompt(line);
+      if (agent.state.errorMessage) {
+        console.error(`\n[error] LLM 调用失败: ${agent.state.errorMessage}`);
+      }
     } catch (err) {
       console.error(`\n[error] ${err instanceof Error ? err.message : err}`);
     }

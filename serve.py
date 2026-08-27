@@ -107,11 +107,13 @@ For each project where status == "active":
 Rules:
 - Only modify data/todos.json (projects array). Do not touch tasks/reminders,
   app/, serve.py, schedule/, or any project directory.
+- Apply the update with the write tool: read data/todos.json fully, then rewrite
+  the complete file in one write call. Do NOT use the edit tool for this file.
 - Do not ask questions. Write pretty JSON (2-space indent).
 - Reply with one short line per project: title + what changed.
 """
 
-_job_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
+_job_queue: queue.Queue[tuple | None] = queue.Queue()
 _voice_queue: queue.Queue[dict | None] = queue.Queue()
 _status_lock = threading.Lock()
 _worker_started = False
@@ -447,7 +449,11 @@ MY_AGENT_DIR = ROOT / "my-agent"
 MY_AGENT_ENTRY = MY_AGENT_DIR / "dist" / "index.js"
 
 
-def run_agent_once(note_preview: str, prompt: str = AGENT_PROMPT) -> None:
+def run_agent_once(
+    note_preview: str,
+    prompt: str = AGENT_PROMPT,
+    verify: "callable[[], bool] | None" = None,
+) -> None:
     node = shutil.which("node")
     if not node:
         write_status(
@@ -470,45 +476,82 @@ def run_agent_once(note_preview: str, prompt: str = AGENT_PROMPT) -> None:
         lastNote=note_preview,
     )
     cmd = [node, str(MY_AGENT_ENTRY), prompt]
-    try:
-        proc = subprocess.run(
-            cmd,
-            cwd=str(ROOT),
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env=os.environ.copy(),
-        )
-        out = (proc.stdout or "").strip()
-        err = (proc.stderr or "").strip()
-        summary = out.splitlines()[-1] if out else (err.splitlines()[-1] if err else "")
-        if proc.returncode != 0:
+    attempts = 2 if verify else 1
+    for attempt in range(1, attempts + 1):
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=str(ROOT),
+                capture_output=True,
+                text=True,
+                timeout=300,
+                env=os.environ.copy(),
+            )
+            out = (proc.stdout or "").strip()
+            err = (proc.stderr or "").strip()
+            summary = out.splitlines()[-1] if out else (err.splitlines()[-1] if err else "")
+            if proc.returncode != 0:
+                write_status(
+                    "error",
+                    summary or f"Agent failed (exit {proc.returncode}).",
+                    lastNote=note_preview,
+                    lastResult=(out or err)[-2000:],
+                )
+                return
+            if verify and not verify():
+                if attempt < attempts:
+                    write_status(
+                        "running",
+                        "Agent finished but made no changes — retrying once…",
+                        lastNote=note_preview,
+                        lastResult=out[-2000:] if out else "",
+                    )
+                    continue
+                write_status(
+                    "error",
+                    "Agent finished without applying changes (gave up after retry).",
+                    lastNote=note_preview,
+                    lastResult=out[-2000:] if out else "",
+                )
+                return
             write_status(
-                "error",
-                summary or f"Agent failed (exit {proc.returncode}).",
+                "done",
+                summary or "Workspace updated.",
                 lastNote=note_preview,
-                lastResult=(out or err)[-2000:],
+                lastResult=out[-2000:] if out else "",
             )
             return
-        write_status(
-            "done",
-            summary or "Workspace updated.",
-            lastNote=note_preview,
-            lastResult=out[-2000:] if out else "",
-        )
-    except subprocess.TimeoutExpired:
-        write_status(
-            "error",
-            "Agent timed out after 5 minutes.",
-            lastNote=note_preview,
-        )
-    except Exception as exc:  # noqa: BLE001
-        write_status(
-            "error",
-            f"Agent launch failed: {exc}",
-            lastNote=note_preview,
-            lastResult=traceback.format_exc()[-2000:],
-        )
+        except subprocess.TimeoutExpired:
+            write_status(
+                "error",
+                "Agent timed out after 5 minutes.",
+                lastNote=note_preview,
+            )
+            return
+        except Exception as exc:  # noqa: BLE001
+            write_status(
+                "error",
+                f"Agent launch failed: {exc}",
+                lastNote=note_preview,
+                lastResult=traceback.format_exc()[-2000:],
+            )
+            return
+
+
+def progress_applied_today() -> bool:
+    """True if any active project's `updated` field was bumped to today
+    (vacuously true when there is nothing to update)."""
+    today = datetime.now().date().isoformat()
+    try:
+        data = json.loads(WORKSPACE.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return False
+    active = [
+        p for p in data.get("projects", []) if p.get("status", "active") == "active"
+    ]
+    if not active:
+        return True
+    return any(str(p.get("updated", "")).startswith(today) for p in active)
 
 
 def worker_loop() -> None:
@@ -520,7 +563,7 @@ def worker_loop() -> None:
         try:
             # Coalesce queued jobs by prompt: inbox and progress jobs are both
             # idempotent, so only the latest of each kind needs to run.
-            jobs: dict[str, tuple[str, str]] = {item[1]: item}
+            jobs: dict[str, tuple] = {item[1]: item}
             while True:
                 try:
                     nxt = _job_queue.get_nowait()
@@ -543,6 +586,7 @@ def enqueue_process(
     note_preview: str,
     prompt: str = AGENT_PROMPT,
     running_msg: str = "Note saved. Starting my-agent…",
+    verify: "callable[[], bool] | None" = None,
 ) -> dict:
     global _worker_started
     if not _worker_started:
@@ -563,7 +607,7 @@ def enqueue_process(
             running_msg,
             lastNote=note_preview,
         )
-    _job_queue.put((note_preview, prompt))
+    _job_queue.put((note_preview, prompt, verify))
     status["queueDepth"] = pending + 1
     return status
 
@@ -578,6 +622,7 @@ def enqueue_progress() -> dict:
         "每日项目进度巡检",
         prompt=PROGRESS_PROMPT,
         running_msg="my-agent 正在巡检项目 git 改动…",
+        verify=progress_applied_today,
     )
 
 

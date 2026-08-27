@@ -88,6 +88,7 @@
       let state = { projects: [], tasks: [], reminders: [] };
       let showDoneTasks = false;
       let showDoneReminders = false;
+      let showDoneProjects = false;
       let projectFormOpen = false;
       let pathHint = "";
 
@@ -208,7 +209,12 @@
       }
 
       function render() {
-        const projects = sortProjects(state.projects);
+        const visibleProjects = sortProjects(
+          state.projects.filter((p) => (p.status || "active") !== "done"),
+        );
+        const doneProjects = sortProjects(
+          state.projects.filter((p) => p.status === "done"),
+        );
         const openTasks = sortByDue(state.tasks.filter((t) => t.status !== "done"));
         const doneTasks = sortByDue(state.tasks.filter((t) => t.status === "done"));
         const openReminders = sortByDue(
@@ -218,9 +224,14 @@
           state.reminders.filter((t) => t.status === "done"),
         );
 
-        const projectRows = projects.length
-          ? `<div class="panel list project-list">${projects.map(projectCard).join("")}</div>`
+        const projectRows = visibleProjects.length
+          ? `<div class="panel list project-list">${visibleProjects.map(projectCard).join("")}</div>`
           : `<div class="panel empty">还没有长期项目。用下方表单添加，并绑到本机项目目录。</div>`;
+
+        const doneProjectBlock =
+          doneProjects.length && showDoneProjects
+            ? `<div class="panel list project-list">${doneProjects.map(projectCard).join("")}</div>`
+            : "";
 
         const form = projectFormOpen
           ? `
@@ -267,12 +278,22 @@
         listsEl.innerHTML = `
           <div class="section-head">
             <p class="section-label">长期项目</p>
-            <button class="btn-ghost btn-tiny" id="toggleProjectForm" type="button">${
-              projectFormOpen ? "收起" : "添加"
-            }</button>
+            <div>
+              ${
+                doneProjects.length
+                  ? `<button class="btn-ghost btn-tiny" id="toggleDoneProjects" type="button">${
+                      showDoneProjects ? "隐藏已完成" : `已完成 ${doneProjects.length}`
+                    }</button>`
+                  : ""
+              }
+              <button class="btn-ghost btn-tiny" id="toggleProjectForm" type="button">${
+                projectFormOpen ? "收起" : "添加"
+              }</button>
+            </div>
           </div>
           ${form}
           ${projectRows}
+          ${doneProjectBlock}
 
           <div class="section-head">
             <p class="section-label">短期待办</p>
@@ -381,6 +402,14 @@
         if (doneTasksBtn) {
           doneTasksBtn.addEventListener("click", () => {
             showDoneTasks = !showDoneTasks;
+            render();
+          });
+        }
+
+        const doneProjectsBtn = $("#toggleDoneProjects");
+        if (doneProjectsBtn) {
+          doneProjectsBtn.addEventListener("click", () => {
+            showDoneProjects = !showDoneProjects;
             render();
           });
         }
