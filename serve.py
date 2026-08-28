@@ -87,30 +87,33 @@ Voice notes land here and are processed automatically.
 9. Reply with one short line summarizing what you changed, or "No clear items; archived only."
 """
 
-PROGRESS_PROMPT = """You are the My workspace project progress updater.
+PROGRESS_PROMPT = """You are the My workspace project progress updater. Today's date: {today}.
 
 Workspace file: data/todos.json has a "projects" array; each project has:
 id, title, path (absolute local directory), status, goal, progress, created, updated.
 
-For each project where status == "active":
-1. If path exists and is a git repo, inspect recent activity with git -C <path>:
+Follow these steps IN ORDER:
+1. Read data/todos.json with the read tool.
+2. For each project where status == "active" and its path exists and is a git repo,
+   inspect recent activity:
    - git -C <path> log --since="7 days ago" --oneline --decorate
    - git -C <path> status --short
-2. Write one concise progress entry for today (prefix with today's date, e.g.
-   "2026-08-25：…"), summarizing real changes: new commits, work in progress,
-   or "本周无改动" if nothing happened. Ground every claim in git output — never invent.
-3. Prepend the new entry to the project's "progress" (keep at most the 5 most recent
-   dated entries, drop older ones) and set "updated" to today's ISO date.
-4. Skip projects whose path is missing or not a git repo; if it previously had progress,
-   append a short note that the path is unavailable.
+   Skip projects whose path is missing or not a git repo.
+3. REQUIRED FINAL STEP — rewrite the complete data/todos.json with the write tool
+   (do NOT use the edit tool). In the projects array, for each active project:
+   - prepend one concise new progress entry dated {today} (format "{today}：…")
+     summarizing the real git changes, or "本周无改动" if nothing happened
+   - keep at most the 5 most recent dated entries in "progress"
+   - set "updated" to {today}
+   Keep tasks/reminders and all other fields unchanged. Pretty JSON, 2-space indent.
 
-Rules:
-- Only modify data/todos.json (projects array). Do not touch tasks/reminders,
-  app/, serve.py, schedule/, or any project directory.
-- Apply the update with the write tool: read data/todos.json fully, then rewrite
-  the complete file in one write call. Do NOT use the edit tool for this file.
-- Do not ask questions. Write pretty JSON (2-space indent).
-- Reply with one short line per project: title + what changed.
+CRITICAL:
+- The update is NOT done until the write call succeeds. Never claim "已更新" or
+  "updated" in your reply unless the write tool call actually succeeded.
+- Ground every claim in git output — never invent commits or changes.
+- Only modify data/todos.json. Do not touch any other file or any project directory.
+- Do not ask questions.
+- After the write succeeds, reply with one short line per project: title + new entry.
 """
 
 _job_queue: queue.Queue[tuple | None] = queue.Queue()
@@ -618,9 +621,10 @@ PROGRESS_MINUTE = int(os.environ.get("MY_PROGRESS_MINUTE", "0"))
 
 def enqueue_progress() -> dict:
     """Enqueue a project-progress git inspection job (daily schedule or manual)."""
+    today = datetime.now().date().isoformat()
     return enqueue_process(
         "每日项目进度巡检",
-        prompt=PROGRESS_PROMPT,
+        prompt=PROGRESS_PROMPT.replace("{today}", today),
         running_msg="my-agent 正在巡检项目 git 改动…",
         verify=progress_applied_today,
     )
