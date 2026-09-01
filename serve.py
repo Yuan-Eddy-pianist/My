@@ -61,6 +61,9 @@ Workspace file: data/todos.json with three arrays:
    - new project → ONLY if the user clearly names a long-term project AND gives an absolute
      local path (e.g. /Users/…). Never invent paths. If they want a project but give no path,
      put a short-term task instead noting "needs project path".
+   - heavy request → anything requiring multi-step execution (writing reports/周报,
+     inspecting multiple repos, code changes). DO NOT execute it. Record it as a task
+     whose title summarizes the request, and move on. Keep total runtime under 2 minutes.
 3. For project updates on an existing project with a path:
    - Read that directory lightly (README, recent git log if .git exists, recent file mtimes)
      to ground a short progress note. Sandbox is disabled so those paths are readable.
@@ -487,7 +490,7 @@ def run_agent_once(
                 cwd=str(ROOT),
                 capture_output=True,
                 text=True,
-                timeout=300,
+                timeout=900,
                 env=os.environ.copy(),
             )
             out = (proc.stdout or "").strip()
@@ -527,7 +530,7 @@ def run_agent_once(
         except subprocess.TimeoutExpired:
             write_status(
                 "error",
-                "Agent timed out after 5 minutes.",
+                "Agent timed out after 15 minutes (local model is slow; consider a smaller/faster model).",
                 lastNote=note_preview,
             )
             return
@@ -645,6 +648,18 @@ def progress_scheduler_loop() -> None:
         threading.Event().wait(30)
 
 
+def inbox_cleared() -> bool:
+    """True when inbox.md holds only the canonical header (agent finished step 7)."""
+    try:
+        text = INBOX.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    body = text.replace("# Inbox", "").replace(
+        "Voice notes land here and are processed automatically.", ""
+    )
+    return body.strip() == ""
+
+
 def append_inbox_and_process(text: str) -> dict:
     block = f"\n## {now_iso()}\n\n{text}\n"
     with INBOX.open("a", encoding="utf-8") as f:
@@ -653,7 +668,9 @@ def append_inbox_and_process(text: str) -> dict:
     return {
         "ok": True,
         "text": text,
-        "agent": enqueue_process(preview),
+        # verify: the local model sometimes "completes" without touching any
+        # file — at minimum the inbox must be reset; retry once otherwise.
+        "agent": enqueue_process(preview, verify=inbox_cleared),
     }
 
 

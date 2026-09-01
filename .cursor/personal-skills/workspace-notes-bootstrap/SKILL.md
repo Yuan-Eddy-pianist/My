@@ -1,35 +1,35 @@
 ---
 name: workspace-notes-bootstrap
 description: >-
-  Manual-only. Creates template updates.md at the workspace project root when
-  it is missing. Do NOT trigger automatically and do NOT apply at the start of
-  a conversation. Use ONLY when the user personally attaches this skill (e.g.
-  types /workspace-notes-bootstrap).
+  Manual-only. Creates a template Mynote.md at the workspace project root when
+  missing, and edits it only when the user explicitly requests an edit in the
+  current turn. Use only when personally attached or invoked by the user.
 ---
 
-# Workspace notes bootstrap (updates.md)
+# Workspace notes bootstrap (`Mynote.md`)
 
-**This skill is manual-only.** Do nothing unless the user has personally
-attached/invoked it this turn. There is no automatic conversation-start check,
-and no "verify before substantive work" step.
+This skill is manual-only. Do nothing unless the user personally attaches or
+invokes it in the current turn.
 
-## What it does
+## Bootstrap behavior
 
-When invoked, create `updates.md` at the workspace project root if it is
-missing. If it already exists, do nothing.
+When invoked, create `Mynote.md` at the workspace project root if it is missing.
+Copy [Mynote-template.md](Mynote-template.md) and replace the placeholder under
+**Canonical workspace path** with the absolute workspace-root path.
 
-| File | Source template |
-|------|-----------------|
-| `updates.md` | Copy [updates-template.md](updates-template.md) from this skill folder. Replace the placeholder under **Canonical workspace path** with the absolute path to the workspace root. |
+If `Mynote.md` already exists, leave it untouched unless the user explicitly
+asks to edit, append, consolidate, or migrate content into it in the current
+request.
 
-**Location:** the repository / project root (the folder the user opened as the
-workspace, or the root that contains `.git`, `package.json`, `tools/`, etc.).
+## Authorization boundary
 
-## Rules
+- Creating a missing `Mynote.md` from the template is authorized by invoking
+  this skill.
+- Any later content change requires explicit user permission in that turn.
+- Scope edits to the requested material and preserve unrelated notes.
+- Never delete or rename `Mynote.md` unless the user explicitly requests it.
+- Do not create or maintain `updates.md`; it is not part of this workflow.
 
-- Only create the file; do not overwrite or rewrite content that already exists.
-- If `updates.md` already exists, leave it untouched.
-- Never delete or rename `updates.md`.
-- Do not append session notes, quick facts, or follow-ups — this skill only
-  scaffolds the template. Ongoing edits are out of scope.
-- Do not create or modify `Mynote.md` — the user maintains that file by hand.
+`Mynote.md` belongs at the repository or project root: the folder opened as the
+workspace, normally containing `.git`, `package.json`, `pyproject.toml`, or the
+project's main source directories.

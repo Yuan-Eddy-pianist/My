@@ -82,6 +82,8 @@
         statusEl: $("#status"),
         micBtn: $("#micBtn"),
         meterEl: $("#micMeter"),
+        // Auto-refresh the lists when the agent finishes processing a note.
+        onProcessed: () => load().catch(() => {}),
       });
 
       const listsEl = $("#lists");

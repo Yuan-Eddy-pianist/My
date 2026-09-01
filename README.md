@@ -59,6 +59,8 @@ Consume-only (no clone, copies into each harness via the skills CLI):
 npx skills add Yuan-Eddy-pianist/My/.cursor/personal-skills -g
 ```
 
+That reads **GitHub**, not this folder. If you see `No skills found`, the remote is still empty — push first (`git push -u origin main`), then retry. Do not run the `-g` command on this Mac if you already use `./install-skills.sh` (it would replace the `~/.cursor/skills` symlink).
+
 Use the clone if you will edit skills and push them back. Use `npx` if that machine only installs them.
 
 **Already in this repo:**

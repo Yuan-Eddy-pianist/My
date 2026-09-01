@@ -307,6 +307,52 @@ button:active,
   animation: pulse 1.2s ease-in-out infinite;
 }
 
+/* Agent thinking: the mic button breathes while the server pipeline works.
+   Two layered animations: a clearly visible expanding ring + a gentle scale. */
+.btn-mic.thinking {
+  background: var(--accent-deep);
+  animation:
+    think-ring 1.8s ease-out infinite,
+    think-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes think-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(55, 153, 94, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(55, 153, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(55, 153, 94, 0);
+  }
+}
+
+@keyframes think-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.09);
+  }
+}
+
+/* Ambient feedback: the clock face glows/breathes while the agent works. */
+.clock-face.breathing .clock-dial {
+  animation: breathe-clock 3.6s ease-in-out infinite;
+}
+
+@keyframes breathe-clock {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(55, 153, 94, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 26px rgba(55, 153, 94, 0.9));
+  }
+}
+
 @keyframes pulse {
   0%,
   100% {

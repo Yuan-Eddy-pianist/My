@@ -596,6 +596,7 @@ export function setupVoice({
   statusEl,
   micBtn,
   meterEl,
+  faceEl,
   onProcessed,
 }) {
   let listening = false;
@@ -611,6 +612,7 @@ export function setupVoice({
   let lastSeenTranscript = "";
   let clientQueued = 0;
   let statusClearTimer = 0;
+  let wasBusy = false;
 
   function clearStatus() {
     if (statusClearTimer) {
@@ -689,6 +691,11 @@ export function setupVoice({
     stopMeter();
   }
 
+  function setThinking(on) {
+    micBtn.classList.toggle("thinking", on);
+    if (faceEl) faceEl.classList.toggle("breathing", on);
+  }
+
   function refreshStatusLine(s) {
     if (listening) return;
     const state = s.state || "idle";
@@ -697,9 +704,33 @@ export function setupVoice({
       setDraft(s.lastTranscript);
       if (onProcessed) onProcessed(s);
     }
-    if (state === "error") {
+
+    // Pipeline feedback: mic button breathes + clock glows while the
+    // server-side pipeline (transcribe → agent) is working.
+    const busy =
+      clientQueued > 0 ||
+      (s.voicePending || 0) > 0 ||
+      state === "transcribing" ||
+      state === "queued" ||
+      state === "running";
+    setThinking(busy);
+
+    if (busy) {
+      if (clientQueued > 0) setStatus("上传中…");
+      else if ((s.voicePending || 0) > 0 || state === "transcribing") {
+        setStatus("转写中…");
+      } else if (state === "queued") setStatus("排队中…");
+      else setStatus("AI 整理中…");
+    } else if (state === "error") {
       setStatus(s.message || "出错了", "error");
+    } else if (wasBusy && state === "done") {
+      // Pipeline just finished: brief confirmation, then fade away.
+      setStatus("已完成 ✓", "ok");
+      playChime([784, 988], { volume: 0.22 });
+      statusClearTimer = window.setTimeout(clearStatus, 2500);
+      if (onProcessed) onProcessed(s);
     }
+    wasBusy = busy;
   }
 
   function stopPolling() {
@@ -747,6 +778,9 @@ export function setupVoice({
 
   async function enqueueBlob(blob, mime) {
     clientQueued += 1;
+    // Instant feedback on send — don't wait for the first poll tick.
+    setThinking(true);
+    setStatus("上传中…");
     ensurePolling();
     try {
       const res = await fetch("/api/voice", {
@@ -865,6 +899,31 @@ export function setupVoice({
       }
     }
   });
+
+  // Re-sync on page load: if the pipeline is already working (e.g. the user
+  // switched between 专注/工作台 mid-run), resume the thinking feedback and
+  // polling so the indicator survives page switches.
+  fetchAgentStatus()
+    .then((s) => {
+      refreshStatusLine(s);
+      const state = s.state || "idle";
+      const busy =
+        (s.voicePending || 0) > 0 ||
+        (s.agentPending || 0) > 0 ||
+        state === "transcribing" ||
+        state === "queued" ||
+        state === "running";
+      if (busy) {
+        ensurePolling();
+      } else if (state === "error") {
+        // Only surface fresh errors — don't re-flash stale ones on every load.
+        const ageMs = Date.now() - new Date(s.updatedAt).getTime();
+        if (Number.isFinite(ageMs) && ageMs < 30 * 60 * 1000) {
+          setStatus(s.message || "出错了", "error");
+        }
+      }
+    })
+    .catch(() => {});
 }
 
 export function dueMeta(due) {

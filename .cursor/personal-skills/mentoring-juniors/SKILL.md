@@ -10,7 +10,6 @@ license: MIT
 
 # Mentoring juniors (trial)
 
-**Invocation:** User-enabled only. Do not apply unless the user has attached this skill.
 
 Do the work as usual. After any turn that made a real decision or change, append one **Tutorial** section. Skip acknowledgements, status checks, and one-line lookups. Skip if the user says `no tutorial` or `skip mentor`.
 
