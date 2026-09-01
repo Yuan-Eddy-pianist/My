@@ -20,7 +20,17 @@ async function main() {
     ) {
       process.stdout.write(event.assistantMessageEvent.delta);
     } else if (event.type === "tool_execution_start") {
-      process.stdout.write(`\n[tool] ${event.toolName ?? event.name ?? "?"}\n`);
+      const args = JSON.stringify(event.args ?? {});
+      process.stdout.write(
+        `\n[tool] ${event.toolName ?? event.name ?? "?"} ${args.slice(0, 200)}\n`,
+      );
+    } else if (event.type === "tool_execution_end") {
+      const text = (event.result?.content ?? [])
+        .map((c: any) => (c.type === "text" ? c.text : `<${c.type}>`))
+        .join("");
+      process.stdout.write(
+        `[result] isError=${event.isError} len=${text.length} ${JSON.stringify(text.slice(0, 120))}\n`,
+      );
     } else if (event.type === "message_end") {
       process.stdout.write("\n");
     }

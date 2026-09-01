@@ -76,11 +76,17 @@ Workspace file: data/todos.json with three arrays:
    When fixing obvious ASR typos in titles, just write the corrected title. NEVER put ASR
    correction chatter in notes (no "ASR：闲语→闲鱼", no "ASR: x -> y", no "heard as…").
    Leave notes empty unless there is real user context beyond the title.
-5. Merge; do not duplicate clearly identical open items. Preserve projects/tasks/reminders
-   keys even if empty. Write pretty JSON (2-space indent).
-6. Append the processed raw inbox content to data/inbox-archive.md under a ## timestamp heading
-   (always archive, even when you create nothing).
-7. Reset data/inbox.md to exactly:
+5. First READ data/todos.json, then write the merged result back with the write tool:
+   keep every existing item, merge new/changed items; do not duplicate clearly identical
+   open items; preserve projects/tasks/reminders keys even if empty; pretty JSON
+   (2-space indent). NEVER write todos.json from scratch — it holds all existing data.
+   If you classified ANY item into tasks/reminders/projects, you MUST write
+   data/todos.json in this run. Claiming you created a task/reminder without actually
+   writing the file is a FAILED run. If every item was filler/tests, skip this write.
+6. ONLY AFTER step 5 is done: append the processed raw inbox content to
+   data/inbox-archive.md under a ## timestamp heading (always archive, even when you
+   create nothing).
+7. ONLY AFTER step 6 is done: reset data/inbox.md to exactly:
 
 # Inbox
 
