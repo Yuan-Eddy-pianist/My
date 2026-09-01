@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      body {
+        padding: 40px;
+        display: flex;
+        gap: 28px;
+        align-items: center;
+        font-family: sans-serif;
+      }
+      .cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="cell">
+      <button class="btn-mic" type="button">
+        <svg class="icon-mic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><line x1="12" y1="19" x2="12" y2="22" /></svg>
+        <span class="icon-spin"><span class="spin-ring"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span>
+        <svg class="icon-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        <span class="icon-sad">:(</span>
+      </button>
+      正常
+    </div>
+    <div class="cell">
+      <button class="btn-mic listening" type="button" style="transform: scale(1.28)">
+        <svg class="icon-mic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><line x1="12" y1="19" x2="12" y2="22" /></svg>
+        <span class="icon-spin"><span class="spin-ring"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span>
+        <svg class="icon-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        <span class="icon-sad">:(</span>
+      </button>
+      录音中(大声)
+    </div>
+    <div class="cell">
+      <button class="btn-mic thinking" type="button">
+        <svg class="icon-mic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><line x1="12" y1="19" x2="12" y2="22" /></svg>
+        <span class="icon-spin"><span class="spin-ring"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span>
+        <svg class="icon-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        <span class="icon-sad">:(</span>
+      </button>
+      AI 处理中
+    </div>
+    <div class="cell">
+      <button class="btn-mic done-flash" type="button">
+        <svg class="icon-mic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><line x1="12" y1="19" x2="12" y2="22" /></svg>
+        <span class="icon-spin"><span class="spin-ring"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span>
+        <svg class="icon-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        <span class="icon-sad">:(</span>
+      </button>
+      完成
+    </div>
+    <div class="cell">
+      <button class="btn-mic error-flash" type="button">
+        <svg class="icon-mic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><line x1="12" y1="19" x2="12" y2="22" /></svg>
+        <span class="icon-spin"><span class="spin-ring"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span>
+        <svg class="icon-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        <span class="icon-sad">:(</span>
+      </button>
+      失败
+    </div>
+  </body>
+</html>

@@ -300,42 +300,131 @@ button:active,
   background: var(--ink);
   color: #f4faf4;
   border-radius: 50%;
+  transition: background 0.25s ease;
 }
 
+/* All icon faces stack in the same grid cell and crossfade on state change. */
+.btn-mic > * {
+  grid-area: 1 / 1;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.btn-mic .icon-spin,
+.btn-mic .icon-check,
+.btn-mic .icon-sad {
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+.btn-mic.thinking .icon-mic,
+.btn-mic.done-flash .icon-mic,
+.btn-mic.error-flash .icon-mic {
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+/* Recording: red + pulse ring; loudness scaling comes from inline transform. */
 .btn-mic.listening {
   background: var(--danger);
   animation: pulse 1.2s ease-in-out infinite;
+  transition: transform 0.12s ease-out;
 }
 
-/* Agent thinking: the mic button breathes while the server pipeline works.
-   Two layered animations: a clearly visible expanding ring + a gentle scale. */
+/* Processing: the mic morphs into a spinning ring of dots. */
 .btn-mic.thinking {
   background: var(--accent-deep);
-  animation:
-    think-ring 1.8s ease-out infinite,
-    think-breathe 2.6s ease-in-out infinite;
 }
 
-@keyframes think-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(55, 153, 94, 0.55);
-  }
-  70% {
-    box-shadow: 0 0 0 12px rgba(55, 153, 94, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(55, 153, 94, 0);
+.btn-mic.thinking .icon-spin {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.spin-ring {
+  display: block;
+  width: 18px;
+  height: 18px;
+  position: relative;
+  animation: spin-rot 0.9s linear infinite;
+}
+
+.spin-ring i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.spin-ring i:nth-child(1) {
+  transform: rotate(0deg) translateY(-7px);
+  opacity: 1;
+}
+.spin-ring i:nth-child(2) {
+  transform: rotate(45deg) translateY(-7px);
+  opacity: 0.88;
+}
+.spin-ring i:nth-child(3) {
+  transform: rotate(90deg) translateY(-7px);
+  opacity: 0.75;
+}
+.spin-ring i:nth-child(4) {
+  transform: rotate(135deg) translateY(-7px);
+  opacity: 0.62;
+}
+.spin-ring i:nth-child(5) {
+  transform: rotate(180deg) translateY(-7px);
+  opacity: 0.5;
+}
+.spin-ring i:nth-child(6) {
+  transform: rotate(225deg) translateY(-7px);
+  opacity: 0.4;
+}
+.spin-ring i:nth-child(7) {
+  transform: rotate(270deg) translateY(-7px);
+  opacity: 0.3;
+}
+.spin-ring i:nth-child(8) {
+  transform: rotate(315deg) translateY(-7px);
+  opacity: 0.22;
+}
+
+@keyframes spin-rot {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@keyframes think-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.09);
-  }
+/* Done: dots morph into a check, then back to the mic. */
+.btn-mic.done-flash {
+  background: var(--accent);
+}
+
+.btn-mic.done-flash .icon-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Error: red sad face, then back to the mic. */
+.btn-mic.error-flash {
+  background: var(--danger);
+}
+
+.btn-mic .icon-sad {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  transform: rotate(90deg) scale(0.4);
+}
+
+.btn-mic.error-flash .icon-sad {
+  opacity: 1;
+  transform: rotate(90deg) scale(1);
 }
 
 /* Ambient feedback: the clock face glows/breathes while the agent works. */
@@ -349,7 +438,7 @@ button:active,
     filter: drop-shadow(0 0 4px rgba(55, 153, 94, 0.3));
   }
   50% {
-    filter: drop-shadow(0 0 26px rgba(55, 153, 94, 0.9));
+    filter: drop-shadow(0 0 30px rgba(55, 153, 94, 0.95));
   }
 }
 
@@ -384,25 +473,6 @@ button:active,
 .voice-feedback:has(.status:not(:empty)),
 .voice-feedback:has(.transcript:not([hidden])) {
   display: flex;
-}
-
-.mic-meter {
-  --level: 0%;
-  flex: none;
-  width: 56px;
-  height: 5px;
-  border-radius: 999px;
-  background: rgba(34, 51, 31, 0.08);
-  overflow: hidden;
-}
-
-.mic-meter::after {
-  content: "";
-  display: block;
-  height: 100%;
-  width: var(--level);
-  background: linear-gradient(90deg, var(--accent), var(--accent-bright));
-  transition: width 0.05s linear;
 }
 
 .status {

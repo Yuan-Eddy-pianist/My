@@ -27,6 +27,7 @@
           <div class="voice-controls">
             <button class="btn-mic" id="micBtn" type="button" aria-label="录音">
               <svg
+                class="icon-mic"
                 viewBox="0 0 24 24"
                 width="16"
                 height="16"
@@ -41,9 +42,27 @@
                 <path d="M5 10a7 7 0 0 0 14 0" />
                 <line x1="12" y1="19" x2="12" y2="22" />
               </svg>
+              <span class="icon-spin" aria-hidden="true"
+                ><span class="spin-ring"
+                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span
+              ></span>
+              <svg
+                class="icon-check"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span class="icon-sad" aria-hidden="true">:(</span>
             </button>
             <div class="voice-feedback" aria-live="polite">
-              <div class="mic-meter" id="micMeter" aria-hidden="true"></div>
               <div class="status" id="status"></div>
               <div class="transcript" id="transcript" hidden></div>
             </div>
@@ -122,7 +141,6 @@
         transcriptEl: $("#transcript"),
         statusEl: $("#status"),
         micBtn: $("#micBtn"),
-        meterEl: $("#micMeter"),
         faceEl: $(".clock-face"),
       });
     </script>

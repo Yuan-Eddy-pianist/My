@@ -595,7 +595,6 @@ export function setupVoice({
   transcriptEl,
   statusEl,
   micBtn,
-  meterEl,
   faceEl,
   onProcessed,
 }) {
@@ -612,7 +611,9 @@ export function setupVoice({
   let lastSeenTranscript = "";
   let clientQueued = 0;
   let statusClearTimer = 0;
+  let flashTimer = 0;
   let wasBusy = false;
+  let prevState = "";
 
   function clearStatus() {
     if (statusClearTimer) {
@@ -644,7 +645,7 @@ export function setupVoice({
     if (meterRaf) cancelAnimationFrame(meterRaf);
     meterRaf = 0;
     lastMeterPct = -1;
-    if (meterEl) meterEl.style.setProperty("--level", "0%");
+    micBtn.style.transform = "";
     if (audioCtx) {
       audioCtx.close().catch(() => {});
       audioCtx = null;
@@ -652,8 +653,8 @@ export function setupVoice({
     analyser = null;
   }
 
+  /** Loudness-reactive button: the mic button itself scales with your voice. */
   function startMeter(stream) {
-    if (!meterEl) return;
     try {
       audioCtx = new AudioContext();
       if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
@@ -673,7 +674,7 @@ export function setupVoice({
         const pct = Math.min(100, Math.round(rms * 500));
         if (pct !== lastMeterPct) {
           lastMeterPct = pct;
-          meterEl.style.setProperty("--level", `${pct}%`);
+          micBtn.style.transform = `scale(${(1 + (pct / 100) * 0.35).toFixed(3)})`;
         }
         meterRaf = requestAnimationFrame(tick);
       };
@@ -691,8 +692,17 @@ export function setupVoice({
     stopMeter();
   }
 
+  /** Brief icon morph (✓ / :() on the mic button, then back to the mic. */
+  function flashIcon(cls, ms) {
+    micBtn.classList.remove("done-flash", "error-flash");
+    micBtn.classList.add(cls);
+    if (flashTimer) window.clearTimeout(flashTimer);
+    flashTimer = window.setTimeout(() => micBtn.classList.remove(cls), ms);
+  }
+
   function setThinking(on) {
     micBtn.classList.toggle("thinking", on);
+    if (on) micBtn.classList.remove("done-flash", "error-flash");
     if (faceEl) faceEl.classList.toggle("breathing", on);
   }
 
@@ -705,8 +715,8 @@ export function setupVoice({
       if (onProcessed) onProcessed(s);
     }
 
-    // Pipeline feedback: mic button breathes + clock glows while the
-    // server-side pipeline (transcribe → agent) is working.
+    // Pipeline feedback lives entirely on the mic button: spinning dots
+    // while the server pipeline works, then a ✓ morph (done) or :( (error).
     const busy =
       clientQueued > 0 ||
       (s.voicePending || 0) > 0 ||
@@ -715,21 +725,18 @@ export function setupVoice({
       state === "running";
     setThinking(busy);
 
-    if (busy) {
-      if (clientQueued > 0) setStatus("上传中…");
-      else if ((s.voicePending || 0) > 0 || state === "transcribing") {
-        setStatus("转写中…");
-      } else if (state === "queued") setStatus("排队中…");
-      else setStatus("AI 整理中…");
-    } else if (state === "error") {
-      setStatus(s.message || "出错了", "error");
-    } else if (wasBusy && state === "done") {
-      // Pipeline just finished: brief confirmation, then fade away.
-      setStatus("已完成 ✓", "ok");
+    if (!busy && state === "error") {
+      // Only react to a fresh error transition, never a stale one on page load.
+      if (wasBusy || (prevState && prevState !== "error")) {
+        flashIcon("error-flash", 3200);
+        setStatus(s.message || "出错了", "error");
+      }
+    } else if (!busy && wasBusy && state === "done") {
+      flashIcon("done-flash", 1800);
       playChime([784, 988], { volume: 0.22 });
-      statusClearTimer = window.setTimeout(clearStatus, 2500);
       if (onProcessed) onProcessed(s);
     }
+    prevState = state;
     wasBusy = busy;
   }
 
@@ -780,7 +787,6 @@ export function setupVoice({
     clientQueued += 1;
     // Instant feedback on send — don't wait for the first poll tick.
     setThinking(true);
-    setStatus("上传中…");
     ensurePolling();
     try {
       const res = await fetch("/api/voice", {
@@ -796,6 +802,8 @@ export function setupVoice({
         throw new Error(data.error || `上传失败 (${res.status})`);
       }
     } catch (err) {
+      setThinking(false);
+      flashIcon("error-flash", 3200);
       setStatus(err.message || String(err), "error");
     } finally {
       clientQueued = Math.max(0, clientQueued - 1);
@@ -901,8 +909,8 @@ export function setupVoice({
   });
 
   // Re-sync on page load: if the pipeline is already working (e.g. the user
-  // switched between 专注/工作台 mid-run), resume the thinking feedback and
-  // polling so the indicator survives page switches.
+  // switched between 专注/工作台 mid-run), resume the spinner feedback and
+  // polling so the indicator survives page switches. Stale errors stay silent.
   fetchAgentStatus()
     .then((s) => {
       refreshStatusLine(s);
@@ -913,15 +921,7 @@ export function setupVoice({
         state === "transcribing" ||
         state === "queued" ||
         state === "running";
-      if (busy) {
-        ensurePolling();
-      } else if (state === "error") {
-        // Only surface fresh errors — don't re-flash stale ones on every load.
-        const ageMs = Date.now() - new Date(s.updatedAt).getTime();
-        if (Number.isFinite(ageMs) && ageMs < 30 * 60 * 1000) {
-          setStatus(s.message || "出错了", "error");
-        }
-      }
+      if (busy) ensurePolling();
     })
     .catch(() => {});
 }
