@@ -580,6 +580,10 @@ async function resolveBuiltInMicId() {
     return "";
   }
   warm.getTracks().forEach((t) => t.stop());
+  // Give macOS a beat to release the audio unit before we reacquire the
+  // same device — reacquiring too fast can yield a permanently muted track
+  // (MediaRecorder then records zero bytes).
+  await new Promise((r) => setTimeout(r, 150));
 
   const inputs = (await navigator.mediaDevices.enumerateDevices()).filter(
     (d) => d.kind === "audioinput" && d.deviceId,
@@ -592,8 +596,6 @@ async function resolveBuiltInMicId() {
  * Record mic → queue on server (non-blocking). You can record again immediately.
  */
 export function setupVoice({
-  transcriptEl,
-  statusEl,
   micBtn,
   faceEl,
   onProcessed,
@@ -610,36 +612,9 @@ export function setupVoice({
   let pollTimer = 0;
   let lastSeenTranscript = "";
   let clientQueued = 0;
-  let statusClearTimer = 0;
   let flashTimer = 0;
   let wasBusy = false;
   let prevState = "";
-
-  function clearStatus() {
-    if (statusClearTimer) {
-      window.clearTimeout(statusClearTimer);
-      statusClearTimer = 0;
-    }
-    statusEl.textContent = "";
-    statusEl.className = "status";
-  }
-
-  function setStatus(msg, kind = "") {
-    if (statusClearTimer) {
-      window.clearTimeout(statusClearTimer);
-      statusClearTimer = 0;
-    }
-    statusEl.textContent = msg;
-    statusEl.className = `status${kind ? ` ${kind}` : ""}`;
-    // Only post-stop confirmation is ephemeral; "开始录音" stays until stop.
-    if (msg === "结束录音") {
-      statusClearTimer = window.setTimeout(clearStatus, 1000);
-    }
-  }
-
-  function setDraft(text) {
-    transcriptEl.textContent = text;
-  }
 
   function stopMeter() {
     if (meterRaf) cancelAnimationFrame(meterRaf);
@@ -711,7 +686,6 @@ export function setupVoice({
     const state = s.state || "idle";
     if (s.lastTranscript && s.lastTranscript !== lastSeenTranscript) {
       lastSeenTranscript = s.lastTranscript;
-      setDraft(s.lastTranscript);
       if (onProcessed) onProcessed(s);
     }
 
@@ -729,7 +703,6 @@ export function setupVoice({
       // Only react to a fresh error transition, never a stale one on page load.
       if (wasBusy || (prevState && prevState !== "error")) {
         flashIcon("error-flash", 3200);
-        setStatus(s.message || "出错了", "error");
       }
     } else if (!busy && wasBusy && state === "done") {
       flashIcon("done-flash", 1800);
@@ -776,7 +749,7 @@ export function setupVoice({
         if (errors >= 10) {
           stopPolling();
           if (!listening) {
-            setStatus("服务未响应，请确认 serve.py 在运行", "error");
+            flashIcon("error-flash", 3200);
           }
         }
       }
@@ -802,9 +775,9 @@ export function setupVoice({
         throw new Error(data.error || `上传失败 (${res.status})`);
       }
     } catch (err) {
+      wdEvent("recErr", "upload: " + (err?.message || String(err)));
       setThinking(false);
       flashIcon("error-flash", 3200);
-      setStatus(err.message || String(err), "error");
     } finally {
       clientQueued = Math.max(0, clientQueued - 1);
     }
@@ -825,11 +798,13 @@ export function setupVoice({
     chunks = [];
     stopTracks();
     micBtn.classList.remove("listening");
-    wdEvent("rec", "stop");
-    setStatus("结束录音");
+    wdEvent("rec", "stop bytes=" + blob.size);
 
     if (!blob.size) {
-      setStatus("录音为空，请重试", "error");
+      // Dead take (e.g. muted track from the warm-stop-reacquire race):
+      // silently return to the normal mic, and force a fresh device
+      // resolution on the next click.
+      preferredDeviceId = "";
       return;
     }
 
@@ -837,10 +812,7 @@ export function setupVoice({
     enqueueBlob(blob, mime);
   }
 
-  if (!window.isSecureContext) {
-    setStatus("请用 Chrome/Edge 打开 http://127.0.0.1:8765", "error");
-  } else if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-    setStatus("此浏览器不支持录音", "error");
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
     micBtn.disabled = true;
   }
   // Mic device resolution happens lazily on first record click.
@@ -875,6 +847,16 @@ export function setupVoice({
         }
       }
       const track = mediaStream.getAudioTracks()[0];
+      if (track && track.muted) {
+        // Acquired a dead track (macOS warm→stop→reacquire race): drop it
+        // and take a fresh default-device stream once.
+        wdEvent("rec", "muted-track");
+        mediaStream.getTracks().forEach((t) => t.stop());
+        await new Promise((r) => setTimeout(r, 150));
+        mediaStream = await navigator.mediaDevices.getUserMedia(
+          rawAudioConstraints(),
+        );
+      }
       startMeter(mediaStream);
 
       const mime = pickRecorderMime();
@@ -891,20 +873,12 @@ export function setupVoice({
       micBtn.classList.add("listening");
       wdEvent("rec", "start");
       playChime([660, 880]);
-      setStatus("开始录音");
     } catch (err) {
       listening = false;
       stopTracks();
       micBtn.classList.remove("listening");
       wdEvent("recErr", err?.name || String(err));
-      const name = err?.name || "";
-      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        setStatus("麦克风被拦截，请允许麦克风权限", "error");
-      } else if (name === "NotFoundError") {
-        setStatus("未检测到麦克风", "error");
-      } else {
-        setStatus(err.message || String(err), "error");
-      }
+      flashIcon("error-flash", 3200);
     }
   });
 

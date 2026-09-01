@@ -452,61 +452,6 @@ button:active,
   }
 }
 
-.voice-feedback {
-  position: absolute;
-  top: calc(100% + 0.45rem);
-  right: 0;
-  z-index: 5;
-  display: none;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
-  white-space: nowrap;
-}
-
-.voice-controls:has(.btn-mic.listening) .voice-feedback,
-.voice-feedback:has(.status:not(:empty)),
-.voice-feedback:has(.transcript:not([hidden])) {
-  display: flex;
-}
-
-.status {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.status:empty {
-  display: none;
-}
-
-.status.error {
-  color: var(--danger);
-}
-
-.status.ok {
-  color: var(--accent-deep);
-}
-
-.transcript[hidden] {
-  display: none;
-}
-
-.transcript:not([hidden]) {
-  max-width: 14rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--ink);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
 /* ---- Todos page ---- */
 
 .page-head {

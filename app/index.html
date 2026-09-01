@@ -62,10 +62,6 @@
               </svg>
               <span class="icon-sad" aria-hidden="true">:(</span>
             </button>
-            <div class="voice-feedback" aria-live="polite">
-              <div class="status" id="status"></div>
-              <div class="transcript" id="transcript" hidden></div>
-            </div>
           </div>
         </div>
       </header>
@@ -138,8 +134,6 @@
       });
 
       setupVoice({
-        transcriptEl: $("#transcript"),
-        statusEl: $("#status"),
         micBtn: $("#micBtn"),
         faceEl: $(".clock-face"),
       });

@@ -62,10 +62,6 @@
               </svg>
               <span class="icon-sad" aria-hidden="true">:(</span>
             </button>
-            <div class="voice-feedback" aria-live="polite">
-              <div class="status" id="status"></div>
-              <div class="transcript" id="transcript" hidden></div>
-            </div>
           </div>
         </div>
       </header>
@@ -97,8 +93,6 @@
       setupWatchdog();
       setupPomodoro({ badgeEl: $("#clockBadge") });
       setupVoice({
-        transcriptEl: $("#transcript"),
-        statusEl: $("#status"),
         micBtn: $("#micBtn"),
         // Auto-refresh the lists when the agent finishes processing a note.
         onProcessed: () => load().catch(() => {}),
