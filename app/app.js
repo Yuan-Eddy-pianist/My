@@ -347,7 +347,7 @@ export function setupPomodoro({
       }
     }
 
-    const label = state.mode === "work" ? "Focus" : "Break";
+    const label = state.mode === "work" ? "专注" : "休息";
     const clock = formatTime(remMs / 1000);
 
     const totalMs =
@@ -373,9 +373,14 @@ export function setupPomodoro({
     setText(displayEl, clock);
     setText(modeEl, state.mode === "work" ? "专注" : "休息");
     setText(sessionEl, `今日 ${state.sessionsToday} 次专注`);
-    setText(startBtn, state.running ? "暂停" : "开始");
+    const action = state.running ? "暂停" : remMs < totalMs ? "继续" : "开始";
+    setText(startBtn, `${action}${label}`);
+    if (startBtn) startBtn.setAttribute("aria-pressed", String(state.running));
     if (badgeEl) {
       setText(badgeEl, `${label} ${clock}`);
+      badgeEl.title = `${state.running ? "暂停" : "开始"}${label}计时 · 切换页面后继续计时`;
+      badgeEl.setAttribute("aria-label", `${label}剩余 ${clock}，点击${state.running ? "暂停" : "开始"}`);
+      badgeEl.setAttribute("aria-pressed", String(state.running));
       const running = state.running ? "1" : "0";
       if (badgeEl.dataset.running !== running) {
         badgeEl.dataset.running = running;
@@ -454,7 +459,6 @@ export function setupPomodoro({
   if (resetBtn) resetBtn.addEventListener("click", reset);
   if (skipBtn) skipBtn.addEventListener("click", skip);
   if (badgeEl) {
-    badgeEl.title = "Pomodoro (keeps running across pages)";
     badgeEl.addEventListener("click", () => {
       state = loadPomodoroState();
       if (state.running) pause();
@@ -597,6 +601,7 @@ async function resolveBuiltInMicId() {
  */
 export function setupVoice({
   micBtn,
+  statusEl,
   faceEl,
   onProcessed,
 }) {
@@ -615,6 +620,16 @@ export function setupVoice({
   let flashTimer = 0;
   let wasBusy = false;
   let prevState = "";
+
+  function feedback(text, state = "idle") {
+    if (statusEl) {
+      if (statusEl.textContent !== text) statusEl.textContent = text;
+      statusEl.dataset.state = state;
+    }
+    micBtn.setAttribute("aria-label", listening ? "结束语音记录" : "开始语音记录");
+    micBtn.setAttribute("aria-pressed", String(listening));
+  }
+  feedback("随时说一句，记下想做的事");
 
   function stopMeter() {
     if (meterRaf) cancelAnimationFrame(meterRaf);
@@ -649,7 +664,9 @@ export function setupVoice({
         const pct = Math.min(100, Math.round(rms * 500));
         if (pct !== lastMeterPct) {
           lastMeterPct = pct;
-          micBtn.style.transform = `scale(${(1 + (pct / 100) * 0.35).toFixed(3)})`;
+          if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            micBtn.style.transform = `scale(${(1 + (pct / 100) * 0.2).toFixed(3)})`;
+          }
         }
         meterRaf = requestAnimationFrame(tick);
       };
@@ -668,9 +685,10 @@ export function setupVoice({
   }
 
   /** Brief icon morph (✓ / :() on the mic button, then back to the mic. */
-  function flashIcon(cls, ms) {
+  function flashIcon(cls, ms, message) {
     micBtn.classList.remove("done-flash", "error-flash");
     micBtn.classList.add(cls);
+    feedback(message || (cls === "done-flash" ? "语音处理完成" : "语音记录失败，请重试"), cls === "done-flash" ? "done" : "error");
     if (flashTimer) window.clearTimeout(flashTimer);
     flashTimer = window.setTimeout(() => micBtn.classList.remove(cls), ms);
   }
@@ -679,6 +697,7 @@ export function setupVoice({
     micBtn.classList.toggle("thinking", on);
     if (on) micBtn.classList.remove("done-flash", "error-flash");
     if (faceEl) faceEl.classList.toggle("breathing", on);
+    if (on && !listening) feedback("正在整理语音…也可以继续记录", "processing");
   }
 
   function refreshStatusLine(s) {
@@ -689,8 +708,7 @@ export function setupVoice({
       if (onProcessed) onProcessed(s);
     }
 
-    // Pipeline feedback lives entirely on the mic button: spinning dots
-    // while the server pipeline works, then a ✓ morph (done) or :( (error).
+    // Keep the text status and icon feedback in sync with the voice pipeline.
     const busy =
       clientQueued > 0 ||
       (s.voicePending || 0) > 0 ||
@@ -777,7 +795,7 @@ export function setupVoice({
     } catch (err) {
       wdEvent("recErr", "upload: " + (err?.message || String(err)));
       setThinking(false);
-      flashIcon("error-flash", 3200);
+      flashIcon("error-flash", 3200, "发送失败，请检查连接后重试");
     } finally {
       clientQueued = Math.max(0, clientQueued - 1);
     }
@@ -805,6 +823,7 @@ export function setupVoice({
       // silently return to the normal mic, and force a fresh device
       // resolution on the next click.
       preferredDeviceId = "";
+      feedback("没有录到声音，请再试一次", "error");
       return;
     }
 
@@ -814,6 +833,7 @@ export function setupVoice({
 
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
     micBtn.disabled = true;
+    feedback("当前浏览器无法录音，请使用 Chrome 或 Edge", "error");
   }
   // Mic device resolution happens lazily on first record click.
 
@@ -829,6 +849,7 @@ export function setupVoice({
     }
 
     try {
+      feedback("正在连接麦克风…", "connecting");
       if (!preferredDeviceId) {
         preferredDeviceId = await resolveBuiltInMicId();
       }
@@ -871,6 +892,7 @@ export function setupVoice({
 
       listening = true;
       micBtn.classList.add("listening");
+      feedback("正在聆听…再次点击麦克风结束", "recording");
       wdEvent("rec", "start");
       playChime([660, 880]);
     } catch (err) {
@@ -878,7 +900,9 @@ export function setupVoice({
       stopTracks();
       micBtn.classList.remove("listening");
       wdEvent("recErr", err?.name || String(err));
-      flashIcon("error-flash", 3200);
+      flashIcon("error-flash", 3200, err?.name === "NotAllowedError"
+        ? "未获得麦克风权限，请在浏览器中允许后重试"
+        : "无法连接麦克风，请检查设备后重试");
     }
   });
 

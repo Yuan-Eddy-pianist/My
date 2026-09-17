@@ -4,28 +4,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>My · 专注</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@500;700;800&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body class="focus-layout">
     <div class="shell">
+      <a class="skip-link" href="#main">跳到主要内容</a>
       <header class="topbar">
-        <div class="brand-wrap">
-          <div class="brand">My</div>
-          <button class="clock-badge" id="clockBadge" type="button">Focus 35:00</button>
-        </div>
+        <a class="brand" href="./index.html" aria-label="My 首页">My<span class="brand-dot" aria-hidden="true">.</span></a>
+        <nav class="nav" aria-label="主导航"><a class="active" aria-current="page" href="./index.html">专注</a><a href="./todos.html">工作台</a></nav>
         <div class="topbar-end">
-          <nav class="nav" aria-label="Primary">
-            <a class="active" href="./index.html">专注</a>
-            <a href="./todos.html">工作台</a>
-          </nav>
+          <button class="clock-badge" id="clockBadge" type="button">专注 35:00</button>
           <div class="voice-controls">
-            <button class="btn-mic" id="micBtn" type="button" aria-label="录音">
+            <button class="btn-mic" id="micBtn" type="button" aria-label="开始语音记录" aria-describedby="voiceStatus" title="点击开始说话，再次点击结束">
               <svg
                 class="icon-mic"
                 viewBox="0 0 24 24"
@@ -65,8 +55,11 @@
           </div>
         </div>
       </header>
+      <div class="voice-status-row"><span class="voice-status" id="voiceStatus" role="status">随时说一句，记下想做的事</span></div>
 
-      <main class="panel hero">
+      <main id="main" class="focus-page">
+        <h1 class="sr-only">专注</h1>
+        <section class="panel hero" aria-label="专注计时器">
         <div class="clock-face">
           <svg class="clock-svg" viewBox="0 0 300 300" aria-hidden="true">
             <circle class="clock-dial" cx="150" cy="150" r="148" />
@@ -83,21 +76,25 @@
               class="clock-hand"
               id="clockHand"
               x1="150"
-              y1="92"
+              y1="29"
               x2="150"
-              y2="40"
+              y2="38"
             />
           </svg>
+          <div class="clock-content">
+            <span class="mode-label" id="timerMode">专注</span>
+            <span class="timer-value" id="timerDisplay" role="timer" aria-label="剩余时间" aria-live="off">35:00</span>
+          </div>
         </div>
         <div class="controls">
-          <button class="btn-primary" id="startBtn" type="button">开始</button>
+          <button class="btn-primary" id="startBtn" type="button">开始专注</button>
           <button class="btn-secondary" id="resetBtn" type="button">重置</button>
-          <button class="btn-ghost" id="skipBtn" type="button">跳过</button>
+          <button class="btn-ghost" id="skipBtn" type="button" title="跳过当前阶段">跳过</button>
         </div>
         <div class="meta-row">
           <span id="sessions">今日 0 次专注</span>
-          <span>35 / 5</span>
         </div>
+        </section>
       </main>
     </div>
 
@@ -123,6 +120,8 @@
       }
 
       setupPomodoro({
+        displayEl: $("#timerDisplay"),
+        modeEl: $("#timerMode"),
         startBtn: $("#startBtn"),
         resetBtn: $("#resetBtn"),
         skipBtn: $("#skipBtn"),
@@ -135,6 +134,7 @@
 
       setupVoice({
         micBtn: $("#micBtn"),
+        statusEl: $("#voiceStatus"),
         faceEl: $(".clock-face"),
       });
     </script>
