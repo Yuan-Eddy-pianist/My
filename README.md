@@ -122,6 +122,8 @@ Uses the **MacBook built-in microphone**. Notes are **queued**: record again wit
 
 On Apple Silicon, ASR uses **MLX Whisper medium** (`mlx-community/whisper-medium-mlx` on Metal GPU) — not CUDA. Falls back to `faster-whisper` CPU `medium` if MLX fails.
 
+For **Pi terminal voice input** (editable chat draft, not an inbox note), see [`pi_voice/README.md`](pi_voice/README.md). Use `/voice` or `Ctrl+Shift+V` to start and stop; review the transcript before sending.
+
 Then the Cursor Agent updates the workspace (projects / short-term todos / reminders).
 
 ## 工作台
