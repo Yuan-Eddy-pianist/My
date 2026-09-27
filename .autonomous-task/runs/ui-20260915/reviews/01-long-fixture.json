@@ -1,0 +1,81 @@
+{
+  "projects": [
+    {
+      "id": "project-a",
+      "title": "个人作品集与长期学习计划的整理、展示和持续迭代",
+      "path": "/Users/eddy/Desktop/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/notes",
+      "goal": "整理近期作品，让每一次尝试都有迹可循。",
+      "status": "active",
+      "progress": "2026-09-14：完成前期的结构规划。\n2026-09-15：继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。"
+    },
+    {
+      "id": "project-b",
+      "title": "阅读与写作",
+      "path": "/Users/eddy/Desktop/My/app",
+      "goal": "每周读完一本书，留下自己的思考。",
+      "status": "paused",
+      "progress": "2026-09-15：读完第一章，整理了三个值得继续思考的问题。"
+    },
+    {
+      "id": "project-done",
+      "title": "夏日照片整理",
+      "path": "/Users/eddy/Desktop/My",
+      "status": "done",
+      "goal": "给夏天留下一份记录。",
+      "progress": ""
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-a",
+      "title": "整理本周的工作笔记，记录每一个值得继续推进的想法，并在下一次复盘时找到明确方向",
+      "due": "2026-09-15",
+      "status": "open",
+      "notes": "这是一条比较长的补充说明，用来检验多行内容能否清晰换行而不挤压主要标题。这是一条比较长的补充说明，用来检验多行内容能否清晰换行而不挤压主要标题。这是一条比较长的补充说明，用来检验多行内容能否清晰换行而不挤压主要标题。"
+    },
+    {
+      "id": "task-b",
+      "title": "回复作品集的修改建议",
+      "due": "2026-09-14",
+      "status": "open",
+      "notes": ""
+    },
+    {
+      "id": "task-c",
+      "title": "读完正在看的那一章",
+      "due": null,
+      "status": "open",
+      "notes": ""
+    },
+    {
+      "id": "task-done",
+      "title": "收拾书桌",
+      "due": "2026-09-15",
+      "status": "done",
+      "notes": ""
+    }
+  ],
+  "reminders": [
+    {
+      "id": "reminder-a",
+      "title": "long-reminder-title-with-no-natural-breaks-long-reminder-title-with-no-natural-breaks-long-reminder-title-with-no-natural-breaks-long-reminder-title-with-no-natural-breaks-",
+      "due": "2026-09-17",
+      "status": "open",
+      "notes": "下午三点，老地方。"
+    },
+    {
+      "id": "reminder-b",
+      "title": "预约下周的课程",
+      "due": "2026-09-15",
+      "status": "open",
+      "notes": ""
+    },
+    {
+      "id": "reminder-done",
+      "title": "取回借出的书",
+      "due": "2026-09-15",
+      "status": "done",
+      "notes": ""
+    }
+  ]
+}

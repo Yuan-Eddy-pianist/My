@@ -1,0 +1,15 @@
+{
+  "dial": {
+    "centerX": 195,
+    "centerY": 422,
+    "height": 280,
+    "width": 280
+  },
+  "headerBottom": 177.3984375,
+  "heroTop": 256,
+  "scrollWidth": 390,
+  "viewport": {
+    "height": 844,
+    "width": 390
+  }
+}

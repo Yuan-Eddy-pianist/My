@@ -1,0 +1,176 @@
+{
+  "projects": [
+    {
+      "id": "proj-msdymcbp-cf22",
+      "title": "My",
+      "path": "/Users/eddy/Desktop/My",
+      "status": "active",
+      "goal": "长期维护项目",
+      "progress": "2026-09-06：定位并修复 agent 死循环与假完成（failed case 根因）；修复录音为空 + 完全移除文字提示条；移除临时状态预览页；语音反馈改为麦克风按钮形态语言：响度缩放/转圈点/对号/:)；语音反馈 UI 重做：思考球 + 钟表呼吸跨页面恢复；本地 LLM：Qwen3-30B-A3B via mlx-lm on :8800，自动启动于 start.sh；增强进度提示，加入日期注入与写入强制；修复进度任务健壮性：写入工具提示，验证+重试，暴露 LLM 错误；隐藏已完成项目。\n2026-09-05：定位并修复 agent 死循环与假完成（failed case 根因）；修复录音为空 + 完全移除文字提示条；移除临时状态预览页；语音反馈改为麦克风按钮形态语言：响度缩放/转圈点/对号/:)；语音反馈 UI 重做：思考球 + 钟表呼吸跨页面恢复；本地 LLM：Qwen3-30B-A3B via mlx-lm on :8800，自动启动于 start.sh；增强进度提示，加入日期注入与写入强制；修复进度任务健壮性：写入工具提示，验证+重试，暴露 LLM 错误；隐藏已完成项目。\n2026-09-04：定位并修复 agent 死循环与假完成（failed case 根因）；修复录音为空 + 完全移除文字提示条；移除临时状态预览页；语音反馈改为麦克风按钮形态语言：响度缩放/转圈点/对号/:)；语音反馈 UI 重做：思考球 + 钟表呼吸跨页面恢复；本地 LLM：Qwen3-30B-A3B via mlx-lm on :8800，自动启动于 start.sh；增强进度提示，加入日期注入与写入强制；修复进度任务健壮性：写入工具提示，验证+重试，暴露 LLM 错误；隐藏已完成项目。\n2026-09-03：定位并修复 agent 死循环与假完成（failed case 根因）；修复录音为空 + 完全移除文字提示条；移除临时状态预览页；语音反馈改为麦克风按钮形态语言：响度缩放/转圈点/对号/:)；语音反馈 UI 重做：思考球 + 钟表呼吸跨页面恢复；本地 LLM：Qwen3-30B-A3B via mlx-lm on :8800，自动启动于 start.sh；增强进度提示，加入日期注入与写入强制；修复进度任务健壮性：写入工具提示，验证+重试，暴露 LLM 错误；隐藏已完成项目。\n2026-09-02：定位并修复 agent 死循环与假完成（failed case 根因）；修复录音为空 + 完全移除文字提示条；移除临时状态预览页；语音反馈改为麦克风按钮形态语言：响度缩放/转圈点/对号/:)；语音反馈 UI 重做：思考球 + 钟表呼吸跨页面恢复；本地 LLM：Qwen3-30B-A3B via mlx-lm on :8800，自动启动于 start.sh；增强进度提示，加入日期注入与写入强制；修复进度任务健壮性：写入工具提示，验证+重试，暴露 LLM 错误；隐藏已完成项目。\n2026-09-01：定位并修复 agent 死循环与假完成（failed case 根因）；修复录音为空 + 完全移除文字提示条；移除临时状态预览页；语音反馈改为麦克风按钮形态语言：响度缩放/转圈点/对号/:)；语音反馈 UI 重做：思考球 + 钟表呼吸跨页面恢复；本地 LLM：Qwen3-30B-A3B via mlx-lm on :8800，自动启动于 start.sh；增强进度提示，加入日期注入与写入强制；修复进度任务健壮性：写入工具提示，验证+重试，暴露 LLM 错误；隐藏已完成项目。\n2026-08-31：本地 LLM：Qwen3-30B-A3B via mlx-lm on :8800，自动启动于 start.sh；增强进度提示，加入日期注入与写入强制；修复进度任务健壮性：写入工具提示，验证+重试，暴露 LLM 错误；隐藏已完成项目.",
+      "created": "2026-08-04T09:08:45+08:00",
+      "updated": "2026-09-06"
+    },
+    {
+      "id": "proj-mseeuroa-xzka",
+      "title": "音频评语生成开发，本地toy env",
+      "path": "/Users/eddy/Documents/YueHe/llm_evaluation_aliyun",
+      "status": "done",
+      "goal": "计划8月内完成，应该不需要很多时间，主要是以后智能体架构，要和高哥一起弄",
+      "progress": "2026-09-06：本周无改动\n2026-09-05：本周无改动\n2026-09-04：本周无改动\n2026-08-31：本周无新增提交（最新提交 8-19 标记仓库完成、开发移交智能体）；进行中：删除多份分析日志，新增多个未跟踪的 analysis_runs（score-freeform、phase-transition 等），并修改 evaluation/llm_client.py.\n2026-08-30：本周无新增提交（最新提交 8-19 标记仓库完成、开发移交智能体）；进行中：删除多份分析日志，新增多个未跟踪的 analysis_runs（score-freeform、phase-transition 等），并修改 evaluation/llm_client.py.\n2026-08-29：本周无新增提交（最新提交 8-19 标记仓库完成、开发移交智能体）；进行中：删除多份分析日志，新增多个未跟踪的 analysis_runs（score-freeform、phase-transition 等），并修改 evaluation/llm_client.py.",
+      "created": "2026-08-04T16:43:12+08:00",
+      "updated": "2026-09-06"
+    },
+    {
+      "id": "proj-msirux46-5jdt",
+      "title": "音乐可视化-氛围灯",
+      "path": "/Users/eddy/Documents/YueHe/音乐可视化-氛围灯",
+      "status": "active",
+      "goal": "评估开源节奏/和声基线（BeatNet+ 等）表现，再决定是否继续训练本地 PyTorch student",
+      "progress": "2026-09-06：实现实时 BeatNet+ 可视化；优化流式响度摘要路径；新增提交（8-24）——添加因果 CQT 音高色彩管线，含音符色彩实现前的项目检查点；进行中：修改 visualizer 的 app.js/index.html 及大量展示 trace files（blues 各小节）；新增未跟踪的 beatnet-realtime-prediction-plan.md、reports/sa8155-cpu-scaling-estimate-2026-08-27.md、scripts/analyze_realtime_diagnostics.py.\n2026-09-05：实现实时 BeatNet+ 可视化；优化流式响度摘要路径；新增提交（8-24）——添加因果 CQT 音高色彩管线，含音符色彩实现前的项目检查点；进行中：修改 visualizer 的 app.js/index.html 及大量展示 trace files（blues 各小节）；新增未跟踪的 beatnet-realtime-prediction-plan.md、reports/sa8155-cpu-scaling-estimate-2026-08-27.md、scripts/analyze_realtime_diagnostics.py.\n2026-09-04：实现实时 BeatNet+ 可视化；优化流式响度摘要路径；新增提交（8-24）——添加因果 CQT 音高色彩管线，含音符色彩实现前的项目检查点；进行中：修改 visualizer 的 app.js/index.html 及大量展示 trace files（blues 各小节）；新增未跟踪的 beatnet-realtime-prediction-plan.md、reports/sa8155-cpu-scaling-estimate-2026-08-27.md、scripts/analyze_realtime_diagnostics.py.\n2026-09-03：实现实时 BeatNet+ 可视化；优化流式响度摘要路径；新增提交（8-24）——添加因果 CQT 音高色彩管线，含音符色彩实现前的项目检查点；进行中：修改 visualizer 的 app.js/index.html 及大量展示 trace files（blues 各小节）；新增未跟踪的 beatnet-realtime-prediction-plan.md、reports/sa8155-cpu-scaling-estimate-2026-08-27.md、scripts/analyze_realtime_diagnostics.py.\n2026-09-02：实现实时 BeatNet+ 可视化；优化流式响度摘要路径.\n2026-09-01：实现实时 BeatNet+ 可视化；优化流式响度摘要路径.",
+      "created": "2026-08-07T17:58:18+08:00",
+      "updated": "2026-09-06"
+    },
+    {
+      "id": "proj-mt9ije5b-lnbm",
+      "title": "元音",
+      "path": "/Users/eddy/Documents/Yuehe/YuanYin_enjoy_llm",
+      "status": "active",
+      "goal": "长期维护项目",
+      "progress": "2026-09-06：新增确定性反馈退化；强化反馈提供者传输与路由；保存当前工作检查点以备可靠性变更；新增 Enjoy 身份适配器；新增评分分析合成上下文；渲染音频增强反馈基准报告；对齐内存感知反馈合成；保存内存感知反馈流水线检查点。\n2026-09-05：新增确定性反馈退化；强化反馈提供者传输与路由；保存当前工作检查点以备可靠性变更；新增 Enjoy 身份适配器；新增评分分析合成上下文；渲染音频增强反馈基准报告；对齐内存感知反馈合成；保存内存感知反馈流水线检查点。\n2026-09-04：新增确定性反馈退化；强化反馈提供者传输与路由；保存当前工作检查点以备可靠性变更；新增 Enjoy 身份适配器；新增评分分析合成上下文；渲染音频增强反馈基准报告；对齐内存感知反馈合成；保存内存感知反馈流水线检查点。\n2026-09-03：新增确定性反馈退化；强化反馈提供者传输与路由；保存当前工作检查点以备可靠性变更；新增 Enjoy 身份适配器；新增评分分析合成上下文；渲染音频增强反馈基准报告；对齐内存感知反馈合成；保存内存感知反馈流水线检查点。\n2026-09-02：新增确定性反馈退化；强化反馈提供者传输与路由；保存当前工作检查点以备可靠性变更；新增 Enjoy 身份适配器；新增评分分析合成上下文；渲染音频增强反馈基准报告；对齐内存感知反馈合成；保存内存感知反馈流水线检查点.",
+      "created": "2026-08-26T11:07:11+08:00",
+      "updated": "2026-09-06"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "remove-asr-audio-model",
+      "title": "删除音频模型并收集失败识别音频",
+      "due": null,
+      "status": "done",
+      "created": "2026-07-28T14:21:48+08:00",
+      "notes": "Moved to reminders."
+    },
+    {
+      "id": "music-five-features",
+      "title": "音乐项目五大特点（五行配器、黄钟调性）",
+      "due": null,
+      "status": "done",
+      "created": "2026-07-28T15:58:48+08:00",
+      "notes": "2. 长度要有。3. 配器尽量用中国传统乐器。4. 结合五行对应乐器：角木→木质乐器，商→金属，羽→多搭水声；宫音用打击乐，配器与音乐内容对应。5. 音高以黄钟（C调）为主，先不做 F 等调。五大特点可用来向听众说明项目特色。"
+    },
+    {
+      "id": "score-dsl-rerecord",
+      "title": "ScoreDSL 任务：重新录",
+      "due": "2026-07-30",
+      "status": "done",
+      "created": "2026-07-29T14:49:35+08:00",
+      "notes": "今天暂停，明天继续，别忘了。"
+    },
+    {
+      "id": "task-xianyu-kr-acct",
+      "title": "在闲鱼上看韩服帐号",
+      "due": "2026-08-05",
+      "status": "done",
+      "created": "2026-08-05T09:08:23+08:00",
+      "notes": ""
+    },
+    {
+      "id": "task-algo-filing-mon",
+      "title": "周一开会问算法备案",
+      "due": "2026-08-10",
+      "status": "done",
+      "created": "2026-08-07T11:30:08+08:00",
+      "notes": ""
+    },
+    {
+      "id": "task-lumina-test-oss",
+      "title": "测试开源模型并评估表现（再决定是否继续训练本地模型）",
+      "due": null,
+      "status": "done",
+      "created": "2026-08-11T13:55:17+08:00",
+      "notes": "音乐可视化-氛围灯（Lumina）；BeatNet+ 等已纳入 third_party/。"
+    },
+    {
+      "id": "task-grocery-aug12",
+      "title": "今晚买菜",
+      "due": "2026-08-12",
+      "status": "done",
+      "created": "2026-08-12T11:08:45+08:00",
+      "notes": ""
+    },
+    {
+      "id": "task-xinyu-zmd-aug17",
+      "title": "晚上给新雨录战矛岛的内容",
+      "due": "2026-08-17",
+      "status": "done",
+      "created": "2026-08-17T09:10:30+08:00",
+      "notes": ""
+    },
+    {
+      "id": "task-pickup-express-aug18",
+      "title": "晚上拿快递",
+      "due": "2026-08-18",
+      "status": "done",
+      "created": "2026-08-18T09:05:14+08:00",
+      "notes": ""
+    },
+    {
+      "id": "task-call-laowang-plan",
+      "title": "周五下午三点给老王打电话确认方案",
+      "due": "2026-08-28",
+      "status": "done",
+      "created": "2026-08-25T11:42:37+08:00",
+      "notes": ""
+    },
+    {
+      "id": "task-weekend-test",
+      "title": "周末正式测试",
+      "due": "2026-08-30",
+      "status": "done",
+      "created": "2026-08-25T11:47:28+08:00",
+      "notes": ""
+    },
+    {
+      "id": "task-6a962fcc-buka",
+      "title": "记得补卡",
+      "due": "2026-09-01",
+      "status": "done",
+      "created": "2026-09-01T09:50:00+08:00",
+      "notes": "语音记录于 2026-08-31（'明天记得补卡'）；agent 漏写入，手动补上"
+    }
+  ],
+  "reminders": [
+    {
+      "id": "remove-asr-audio-model",
+      "title": "删除音频模型并收集失败识别音频",
+      "due": null,
+      "status": "open",
+      "created": "2026-08-03T10:41:00+08:00",
+      "notes": "准确度有时不好，怀疑过拟合。从现在起收集未能成功识别的音频，数量足够后开始训练。Moved from tasks."
+    },
+    {
+      "id": "rem-commute-clock",
+      "title": "上下班打卡",
+      "due": null,
+      "status": "open",
+      "created": "2026-08-04T15:04:19+08:00",
+      "notes": "Daily clock in/out."
+    },
+    {
+      "id": "rem-reminder-001",
+      "title": "明天上午十点记得回邮件",
+      "due": "2026-08-31",
+      "status": "done",
+      "created": "2026-08-30T17:14:28+08:00",
+      "notes": ""
+    },
+    {
+      "id": "rem-mbt9k-buka2",
+      "title": "待会补卡",
+      "due": "2026-09-01",
+      "status": "done",
+      "created": "2026-09-01T11:45:00+08:00",
+      "notes": "语音记录；agent 两次未落地（failed case），手动补录"
+    }
+  ]
+}

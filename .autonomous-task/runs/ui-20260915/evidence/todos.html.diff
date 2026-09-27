@@ -1,0 +1,338 @@
+--- .autonomous-task/runs/ui-20260915/baseline/todos.html	2026-09-07 09:50:08
++++ app/todos.html	2026-09-15 10:44:02
+@@ -4,28 +4,18 @@
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1" />
+     <title>My · 工作台</title>
+-    <link rel="preconnect" href="https://fonts.googleapis.com" />
+-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+-    <link
+-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@500;700;800&display=swap"
+-      rel="stylesheet"
+-    />
+     <link rel="stylesheet" href="./styles.css" />
+   </head>
+   <body>
+     <div class="shell">
++      <a class="skip-link" href="#main">跳到主要内容</a>
+       <header class="topbar">
+-        <div class="brand-wrap">
+-          <div class="brand">My</div>
+-          <button class="clock-badge" id="clockBadge" type="button">Focus 35:00</button>
+-        </div>
++        <a class="brand" href="./index.html" aria-label="My 首页">My<span class="brand-dot" aria-hidden="true">.</span></a>
++        <nav class="nav" aria-label="主导航"><a href="./index.html">专注</a><a class="active" aria-current="page" href="./todos.html">工作台</a></nav>
+         <div class="topbar-end">
+-          <nav class="nav" aria-label="Primary">
+-            <a href="./index.html">专注</a>
+-            <a class="active" href="./todos.html">工作台</a>
+-          </nav>
++          <button class="clock-badge" id="clockBadge" type="button">专注 35:00</button>
+           <div class="voice-controls">
+-            <button class="btn-mic" id="micBtn" type="button" aria-label="录音">
++            <button class="btn-mic" id="micBtn" type="button" aria-label="开始语音记录" aria-describedby="voiceStatus" title="点击开始说话，再次点击结束">
+               <svg
+                 class="icon-mic"
+                 viewBox="0 0 24 24"
+@@ -65,15 +55,20 @@
+           </div>
+         </div>
+       </header>
++      <div class="voice-status-row"><span class="voice-status" id="voiceStatus" role="status">随时说一句，记下想做的事</span></div>
+ 
++      <main id="main">
+       <div class="page-head">
+         <div>
++          <p class="eyebrow">一件一件，慢慢完成</p>
+           <h1>工作台</h1>
++          <p id="workspaceSummary">正在整理你的工作台…</p>
+         </div>
+         <button class="btn-ghost" id="refreshBtn" type="button">刷新</button>
+       </div>
+ 
+-      <div id="lists"></div>
++      <div id="lists" aria-busy="true"><div class="panel empty">正在加载项目、待办和提醒…</div></div>
++      </main>
+     </div>
+ 
+     <script type="module">
+@@ -88,12 +83,14 @@
+         setupPomodoro,
+         setupVoice,
+         setupWatchdog,
++        todayKey,
+       } from "./app.js";
+ 
+       setupWatchdog();
+       setupPomodoro({ badgeEl: $("#clockBadge") });
+       setupVoice({
+         micBtn: $("#micBtn"),
++        statusEl: $("#voiceStatus"),
+         // Auto-refresh the lists when the agent finishes processing a note.
+         onProcessed: () => load().catch(() => {}),
+       });
+@@ -170,24 +167,25 @@
+           : "";
+         const removeBtn =
+           item.status === "done"
+-            ? `<button class="btn-ghost btn-tiny btn-remove" type="button" data-remove-kind="${kind}" data-remove-id="${escapeAttr(item.id)}" aria-label="删除">删除</button>`
++            ? `<button class="btn-ghost btn-tiny btn-remove" type="button" data-remove-kind="${kind}" data-remove-id="${escapeAttr(item.id)}" aria-label="删除${escapeAttr(item.title || "未命名事项")}">删除</button>`
+             : "";
+         return `
+-          <label class="task ${item.status === "done" ? "done" : ""}">
++          <article class="task ${item.status === "done" ? "done" : ""}">
+             <input
+               class="check"
++              id="${kind}-${escapeAttr(item.id)}"
+               type="checkbox"
+               data-kind="${kind}"
+               data-id="${escapeAttr(item.id)}"
+               ${item.status === "done" ? "checked" : ""}
+             />
+             <div>
+-              <p class="task-title">${escapeHtml(item.title || "(未命名)")}</p>
+-              <p class="task-meta ${meta.kind}">${escapeHtml(meta.text)}</p>
++              <label class="task-title" for="${kind}-${escapeAttr(item.id)}">${escapeHtml(item.title || "(未命名)")}</label>
++              <p class="task-meta"><span class="due-label ${meta.kind}">${escapeHtml(meta.text)}</span></p>
+               ${notes}
+             </div>
+-            ${removeBtn || "<div></div>"}
+-          </label>
++            ${removeBtn}
++          </article>
+         `;
+       }
+ 
+@@ -212,50 +210,38 @@
+ 
+       function projectCard(p) {
+         const status = p.status || "active";
+-        const pathOk = p._pathOk;
+-        const pathLabel = p.path
+-          ? pathOk === false
+-            ? "路径无效"
+-            : pathOk === true
+-              ? "已对齐目录"
+-              : "本地目录"
+-          : "未设置路径";
+-        const pathClass =
+-          pathOk === false ? "path-bad" : pathOk === true ? "path-ok" : "";
++        const pathLabel = !p.path ? "未设置目录" : p._pathOk === false ? "目录不可用" : p._pathOk === true ? "已连接本机目录" : "本机目录";
++        const pathClass = p._pathOk === false ? "path-bad" : "path-ok";
++        const recent = recentProgress(p.progress);
++        const preview = recent ? recent.split("\n").filter(Boolean).at(-1) : (p.progress ? "最近 7 天没有更新。" : "还没有进度记录，用语音记下第一步。");
++        const excerpt = preview.length > 140 ? preview.slice(0, 140) + "…" : preview;
+         return `
+-          <article class="project ${status === "done" ? "done" : ""}" data-id="${escapeAttr(p.id)}">
++          <article class="panel project ${status === "done" ? "done" : ""}" data-id="${escapeAttr(p.id)}">
+             <div class="project-top">
+-              <div>
+-                <p class="task-title">${escapeHtml(p.title || "(未命名项目)")}</p>
+-                <p class="task-meta ${pathClass}">${escapeHtml(pathLabel)}${
+-                  p.path ? ` · ${escapeHtml(p.path)}` : ""
+-                }</p>
+-              </div>
+-              <select class="status-select" data-project-status="${escapeAttr(p.id)}" aria-label="项目状态">
++              <div><p class="project-kind">长期项目</p><h3 class="task-title">${escapeHtml(p.title || "(未命名项目)")}</h3></div>
++              <select class="status-select" data-status="${escapeAttr(status)}" data-project-status="${escapeAttr(p.id)}" aria-label="${escapeAttr(p.title || "未命名项目")}的状态">
+                 <option value="active" ${status === "active" ? "selected" : ""}>进行中</option>
+                 <option value="paused" ${status === "paused" ? "selected" : ""}>暂停</option>
+                 <option value="done" ${status === "done" ? "selected" : ""}>完成</option>
+               </select>
+             </div>
+-            ${
+-              p.goal
+-                ? `<p class="project-goal">${escapeHtml(p.goal)}</p>`
+-                : ""
+-            }
+-            ${(() => {
+-              const recent = recentProgress(p.progress);
+-              if (recent) {
+-                return `<p class="project-progress">${escapeHtml(recent)}</p>`;
+-              }
+-              return p.progress
+-                ? `<p class="project-progress muted">最近 7 天没有更新。</p>`
+-                : `<p class="project-progress muted">还没有进度笔记。语音提到这个项目时，agent 会对照目录更新。</p>`;
+-            })()}
+-          </article>
+-        `;
++            ${p.goal ? `<p class="project-goal">${escapeHtml(p.goal)}</p>` : ""}
++            <p class="project-preview">${escapeHtml(excerpt)}</p>
++            <details class="project-details" data-project-details="${escapeAttr(p.id)}">
++              <summary>项目详情与进展</summary>
++              <p class="detail-label ${pathClass}">${escapeHtml(pathLabel)}</p>
++              <p class="path-text">${escapeHtml(p.path || "尚未设置本机目录")}</p>
++              ${recent ? `<p class="detail-label">最近 7 天</p><p class="project-progress">${escapeHtml(recent)}</p>` : ""}
++            </details>
++          </article>`;
+       }
+ 
+       function render() {
++        const focused = document.activeElement;
++        const focusId = focused?.id;
++        const focusProject = focused?.getAttribute("data-project-status");
++        const draft = $("#projectForm") ? new FormData($("#projectForm")) : null;
++        const expanded = new Set([...listsEl.querySelectorAll("details[open]")].map(el => el.dataset.projectDetails));
+         const visibleProjects = sortProjects(
+           state.projects.filter((p) => (p.status || "active") !== "done"),
+         );
+@@ -272,12 +258,12 @@
+         );
+ 
+         const projectRows = visibleProjects.length
+-          ? `<div class="panel list project-list">${visibleProjects.map(projectCard).join("")}</div>`
+-          : `<div class="panel empty">还没有长期项目。用下方表单添加，并绑到本机项目目录。</div>`;
++          ? `<div class="project-list">${visibleProjects.map(projectCard).join("")}</div>`
++          : `<div class="panel empty"><strong>给长期目标留个位置</strong>添加一个项目，连接本机目录，记录每一步进展。</div>`;
+ 
+         const doneProjectBlock =
+           doneProjects.length && showDoneProjects
+-            ? `<div class="panel list project-list">${doneProjects.map(projectCard).join("")}</div>`
++            ? `<div class="project-list">${doneProjects.map(projectCard).join("")}</div>`
+             : "";
+ 
+         const form = projectFormOpen
+@@ -295,7 +281,7 @@
+                 <span>目标（可选）</span>
+                 <input name="goal" type="text" placeholder="这几周想做成什么" autocomplete="off" />
+               </label>
+-              <p class="path-hint ${pathHint.startsWith("✓") ? "path-ok" : pathHint ? "path-bad" : ""}" id="pathHint">${escapeHtml(pathHint)}</p>
++              <p class="path-hint ${pathHint.startsWith("✓") ? "path-ok" : pathHint ? "path-bad" : ""}" id="pathHint" role="status">${escapeHtml(pathHint)}</p>
+               <div class="form-actions">
+                 <button class="btn-primary" type="submit">添加项目</button>
+                 <button class="btn-ghost" type="button" id="cancelProjectBtn">取消</button>
+@@ -306,7 +292,7 @@
+ 
+         const taskRows = openTasks.length
+           ? `<div class="panel list">${openTasks.map((t) => checkboxRow(t, { kind: "task" })).join("")}</div>`
+-          : `<div class="panel empty">没有短期待办。</div>`;
++          : `<div class="panel empty"><strong>眼前的事，都完成了</strong>有新的想法？点击麦克风记下来。</div>`;
+ 
+         const doneTaskBlock =
+           doneTasks.length && showDoneTasks
+@@ -315,61 +301,51 @@
+ 
+         const reminderRows = openReminders.length
+           ? `<div class="panel list">${openReminders.map((t) => checkboxRow(t, { kind: "reminder" })).join("")}</div>`
+-          : `<div class="panel empty">没有提醒。</div>`;
++          : `<div class="panel empty"><strong>暂时没有提醒</strong>需要记住的日期，用语音告诉我。</div>`;
+ 
+         const doneReminderBlock =
+           doneReminders.length && showDoneReminders
+             ? `<div class="panel list">${doneReminders.map((t) => checkboxRow(t, { kind: "reminder" })).join("")}</div>`
+             : "";
+ 
++        const dueCount = [...openTasks, ...openReminders].filter(item => item.due && item.due <= todayKey()).length;
++        $("#workspaceSummary").textContent = `${openTasks.length} 项待办 · ${openReminders.length} 个提醒${dueCount ? ` · ${dueCount} 项今天需要留意` : " · 按自己的节奏，推进每一天"}`;
++        listsEl.setAttribute("aria-busy", "false");
+         listsEl.innerHTML = `
+-          <div class="section-head">
+-            <p class="section-label">长期项目</p>
+-            <div>
+-              ${
+-                doneProjects.length
+-                  ? `<button class="btn-ghost btn-tiny" id="toggleDoneProjects" type="button">${
+-                      showDoneProjects ? "隐藏已完成" : `已完成 ${doneProjects.length}`
+-                    }</button>`
+-                  : ""
+-              }
+-              <button class="btn-ghost btn-tiny" id="toggleProjectForm" type="button">${
+-                projectFormOpen ? "收起" : "添加"
+-              }</button>
++          <section class="workspace-section" aria-labelledby="tasksHeading">
++            <div class="section-head">
++              <h2 class="section-label" id="tasksHeading">短期待办 <span class="section-count">${openTasks.length}</span></h2>
++              ${doneTasks.length ? `<button class="btn-ghost btn-tiny" id="toggleDoneTasks" type="button" aria-expanded="${showDoneTasks}">${showDoneTasks ? "收起已完成" : `已完成 ${doneTasks.length}`}</button>` : ""}
+             </div>
+-          </div>
+-          ${form}
+-          ${projectRows}
+-          ${doneProjectBlock}
+-
+-          <div class="section-head">
+-            <p class="section-label">短期待办</p>
+-            ${
+-              doneTasks.length
+-                ? `<button class="btn-ghost btn-tiny" id="toggleDoneTasks" type="button">${
+-                    showDoneTasks ? "隐藏已完成" : `已完成 ${doneTasks.length}`
+-                  }</button>`
+-                : ""
+-            }
+-          </div>
+-          ${taskRows}
+-          ${doneTaskBlock}
+-
+-          <div class="section-head">
+-            <p class="section-label">提醒</p>
+-            ${
+-              doneReminders.length
+-                ? `<button class="btn-ghost btn-tiny" id="toggleDoneReminders" type="button">${
+-                    showDoneReminders ? "隐藏已完成" : `已完成 ${doneReminders.length}`
+-                  }</button>`
+-                : ""
+-            }
+-          </div>
+-          ${reminderRows}
+-          ${doneReminderBlock}
++            ${taskRows}
++            <div class="completed-list">${doneTaskBlock}</div>
++          </section>
++          <section class="workspace-section" aria-labelledby="remindersHeading">
++            <div class="section-head">
++              <h2 class="section-label" id="remindersHeading">提醒 <span class="section-count">${openReminders.length}</span></h2>
++              ${doneReminders.length ? `<button class="btn-ghost btn-tiny" id="toggleDoneReminders" type="button" aria-expanded="${showDoneReminders}">${showDoneReminders ? "收起已完成" : `已完成 ${doneReminders.length}`}</button>` : ""}
++            </div>
++            ${reminderRows}
++            <div class="completed-list">${doneReminderBlock}</div>
++          </section>
++          <section class="workspace-section projects-section" aria-labelledby="projectsHeading">
++            <div class="section-head">
++              <h2 class="section-label" id="projectsHeading">长期项目 <span class="section-count">${visibleProjects.length}</span></h2>
++              <div class="section-actions">
++                ${doneProjects.length ? `<button class="btn-ghost btn-tiny" id="toggleDoneProjects" type="button" aria-expanded="${showDoneProjects}">${showDoneProjects ? "收起已完成" : `已完成 ${doneProjects.length}`}</button>` : ""}
++                <button class="btn-secondary btn-tiny" id="toggleProjectForm" type="button" aria-expanded="${projectFormOpen}">${projectFormOpen ? "收起表单" : "+ 添加项目"}</button>
++              </div>
++            </div>
++            ${form}
++            ${projectRows}
++            <div class="completed-list">${doneProjectBlock}</div>
++          </section>
+         `;
+-
++        for (const detail of listsEl.querySelectorAll("details")) detail.open = expanded.has(detail.dataset.projectDetails);
++        if (draft && $("#projectForm")) for (const [name, value] of draft) $("#projectForm").elements.namedItem(name).value = value;
+         bindListEvents();
++        const nextFocus = focusId ? document.getElementById(focusId) : focusProject ? [...listsEl.querySelectorAll("[data-project-status]")].find(el => el.dataset.projectStatus === focusProject) : null;
++        nextFocus?.focus({ preventScroll: true });
+       }
+ 
+       function bindListEvents() {
+@@ -440,6 +416,7 @@
+             projectFormOpen = !projectFormOpen;
+             pathHint = "";
+             render();
++            if (projectFormOpen) $("#projectForm").elements.namedItem("title").focus();
+           });
+         }
+ 
+@@ -449,6 +426,7 @@
+             projectFormOpen = false;
+             pathHint = "";
+             render();
++            $("#toggleProjectForm")?.focus();
+           });
+         }
+ 
+@@ -584,9 +562,11 @@
+       });
+ 
+       load().catch((err) => {
++        listsEl.setAttribute("aria-busy", "false");
++        $("#workspaceSummary").textContent = "暂时无法连接，点击刷新再试一次。";
+         listsEl.innerHTML = `<div class="panel empty">无法加载工作台：${escapeHtml(
+           err.message || String(err),
+-        )}。serve.py 在运行吗？</div>`;
++        )}。请确认本地服务已启动，然后点击刷新。</div>`;
+       });
+     </script>
+   </body>

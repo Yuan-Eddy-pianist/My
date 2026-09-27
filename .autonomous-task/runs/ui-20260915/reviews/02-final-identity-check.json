@@ -1,0 +1,19 @@
+{
+  "app/index.html": {
+    "actual": "312868603b1bb739a1bd65c945978f65d8fc50ecd52d68333e99284bdfaf45dd",
+    "matches": true
+  },
+  "app/todos.html": {
+    "actual": "b1b24c241f4c26c8bc61efda85792bc54d51e269698476468fa1d48d2d61de07",
+    "matches": true
+  },
+  "app/styles.css": {
+    "actual": "474781797334402b21cd4bf1f07a067065bb9e8a003cd75f376028f432e328cd",
+    "matches": true
+  },
+  "app/app.js": {
+    "actual": "4ab6cc78bdb1a96c25fe2e5aa37d4a458fe6b39f1f0faf505f7522126c69e577",
+    "matches": true
+  },
+  "fixture_restored": true
+}

@@ -1,0 +1,9 @@
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6-sol",
+  "defaultThinkingLevel": "high",
+  "packages": [
+    "npm:pi-web-access@0.32.0",
+    "npm:@ryan_nookpi/pi-extension-codex-fast-mode@0.2.7"
+  ]
+}

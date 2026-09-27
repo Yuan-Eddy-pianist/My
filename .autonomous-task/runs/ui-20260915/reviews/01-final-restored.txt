@@ -1,0 +1,83 @@
+- link "跳到主要内容":
+  - /url: "#main"
+- banner:
+  - link "My 首页":
+    - /url: ./index.html
+    - text: My.
+  - navigation "主导航":
+    - link "专注":
+      - /url: ./index.html
+    - link "工作台":
+      - /url: ./todos.html
+  - button "专注剩余 35:00，点击开始": 专注 35:00
+  - button "开始语音记录":
+    - generic: :(
+- status: 随时说一句，记下想做的事
+- main:
+  - paragraph: 一件一件，慢慢完成
+  - heading "工作台" [level=1]
+  - paragraph: 3 项待办 · 2 个提醒 · 3 项今天需要留意
+  - button "刷新"
+  - region "短期待办 3":
+    - heading "短期待办 3" [level=2]:
+      - text: 短期待办
+      - generic: "3"
+    - button "已完成 1"
+    - article:
+      - checkbox "回复作品集的修改建议"
+      - generic: 回复作品集的修改建议
+      - paragraph:
+        - generic: 已逾期 · 2026-09-14
+    - article:
+      - checkbox "整理本周的工作笔记"
+      - generic: 整理本周的工作笔记
+      - paragraph:
+        - generic: 今日截止 · 2026-09-15
+      - paragraph: 把零散的想法，整理成下一步行动。
+    - article:
+      - checkbox "读完正在看的那一章"
+      - generic: 读完正在看的那一章
+      - paragraph:
+        - generic: 无截止日期
+  - region "提醒 2":
+    - heading "提醒 2" [level=2]:
+      - text: 提醒
+      - generic: "2"
+    - button "已完成 1"
+    - article:
+      - checkbox "预约下周的课程"
+      - generic: 预约下周的课程
+      - paragraph:
+        - generic: 今日截止 · 2026-09-15
+    - article:
+      - checkbox "和朋友见面喝咖啡"
+      - generic: 和朋友见面喝咖啡
+      - paragraph:
+        - generic: 截止 2026-09-17
+      - paragraph: 下午三点，老地方。
+  - region "长期项目 2":
+    - heading "长期项目 2" [level=2]:
+      - text: 长期项目
+      - generic: "2"
+    - button "已完成 1"
+    - button "+ 添加项目"
+    - article:
+      - paragraph: 长期项目
+      - heading "个人作品集" [level=3]
+      - combobox "个人作品集的状态":
+        - option "进行中" [selected]
+        - option "暂停"
+        - option "完成"
+      - paragraph: 整理近期作品，让每一次尝试都有迹可循。
+      - paragraph: 2026-09-15：继续打磨作品介绍，挑选三件最能代表自己的作品。
+      - generic "项目详情与进展"
+    - article:
+      - paragraph: 长期项目
+      - heading "阅读与写作" [level=3]
+      - combobox "阅读与写作的状态":
+        - option "进行中"
+        - option "暂停" [selected]
+        - option "完成"
+      - paragraph: 每周读完一本书，留下自己的思考。
+      - paragraph: 2026-09-15：读完第一章，整理了三个值得继续思考的问题。
+      - generic "项目详情与进展"

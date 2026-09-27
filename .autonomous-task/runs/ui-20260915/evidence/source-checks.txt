@@ -1,0 +1,9 @@
+index.html: 142 → 150 lines; baseline retained.
+Inline module syntax index.html: PASS
+todos.html: 593 → 573 lines; baseline retained.
+Inline module syntax todos.html: PASS
+styles.css: 714 → 331 lines; baseline retained.
+app.js: 917 → 943 lines; baseline retained.
+serve.py unchanged since run baseline: True
+project_progress.py unchanged since run baseline: True
+data/todos.json unchanged since run baseline: True

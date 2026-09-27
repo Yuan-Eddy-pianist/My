@@ -106,7 +106,7 @@ export async function postInbox(text, { process = true } = {}) {
 }
 
 export function emptyWorkspace() {
-  return { projects: [], tasks: [], reminders: [] };
+  return { projects: [], tasks: [], reminders: [], _version: null };
 }
 
 export function normalizeWorkspace(raw) {
@@ -116,6 +116,7 @@ export function normalizeWorkspace(raw) {
     projects: Array.isArray(raw.projects) ? raw.projects : [],
     tasks: Array.isArray(raw.tasks) ? raw.tasks : [],
     reminders: Array.isArray(raw.reminders) ? raw.reminders : [],
+    _version: typeof raw._version === "string" ? raw._version : null,
   };
 }
 
@@ -138,7 +139,14 @@ export async function saveWorkspace(payload) {
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `save failed (${res.status})`);
+  if (!res.ok) {
+    const error = new Error(data.error || `save failed (${res.status})`);
+    error.status = res.status;
+    throw error;
+  }
+  if (payload && typeof payload === "object" && typeof data._version === "string") {
+    payload._version = data._version;
+  }
   return data;
 }
 

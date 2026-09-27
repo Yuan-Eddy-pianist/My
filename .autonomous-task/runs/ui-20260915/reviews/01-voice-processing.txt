@@ -1,0 +1,5 @@
+Browser tab: 1196902758, Title: "My · 工作台", URL: "http://127.0.0.1:8875/app/todos.html".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~		9 checkbox Description: 开始语音记录, Value: 0, ID: micBtn
+~	80 text 正在整理语音…也可以继续记录
+The focused UI element is 9 checkbox Description: 开始语音记录, Value: 0, ID: micBtn

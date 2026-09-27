@@ -1,0 +1,5 @@
+Browser tab: 1196902758, Title: "My · 专注", URL: "http://127.0.0.1:8875/app/index.html?voice=denied".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 10
++	31 text 未获得麦克风权限，请在浏览器中允许后重试
+The focused UI element is 9 checkbox Description: 开始语音记录, Value: 0, ID: micBtn

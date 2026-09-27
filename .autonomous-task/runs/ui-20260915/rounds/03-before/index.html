@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My · 专注</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <a class="skip-link" href="#main">跳到主要内容</a>
+      <header class="topbar">
+        <a class="brand" href="./index.html" aria-label="My 首页">My<span class="brand-dot" aria-hidden="true">.</span></a>
+        <nav class="nav" aria-label="主导航"><a class="active" aria-current="page" href="./index.html">专注</a><a href="./todos.html">工作台</a></nav>
+        <div class="topbar-end">
+          <button class="clock-badge" id="clockBadge" type="button">专注 35:00</button>
+          <div class="voice-controls">
+            <button class="btn-mic" id="micBtn" type="button" aria-label="开始语音记录" aria-describedby="voiceStatus" title="点击开始说话，再次点击结束">
+              <svg
+                class="icon-mic"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="9" y="2" width="6" height="12" rx="3" />
+                <path d="M5 10a7 7 0 0 0 14 0" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+              <span class="icon-spin" aria-hidden="true"
+                ><span class="spin-ring"
+                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span
+              ></span>
+              <svg
+                class="icon-check"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span class="icon-sad" aria-hidden="true">:(</span>
+            </button>
+          </div>
+        </div>
+      </header>
+      <div class="voice-status-row"><span class="voice-status" id="voiceStatus" role="status">随时说一句，记下想做的事</span></div>
+
+      <main id="main" class="focus-page">
+        <div class="focus-heading">
+          <p class="eyebrow">给自己一段专注的时间</p>
+          <h1>此刻，只做一件事。</h1>
+          <p>35 分钟专注，5 分钟休息。找到自己的节奏。</p>
+        </div>
+        <section class="panel hero" aria-label="专注计时器">
+        <div class="clock-face">
+          <svg class="clock-svg" viewBox="0 0 300 300" aria-hidden="true">
+            <circle class="clock-dial" cx="150" cy="150" r="148" />
+            <g id="clockTicks"></g>
+            <circle class="clock-track" cx="150" cy="150" r="132" />
+            <circle
+              class="clock-progress"
+              id="clockProgress"
+              cx="150"
+              cy="150"
+              r="132"
+            />
+            <line
+              class="clock-hand"
+              id="clockHand"
+              x1="150"
+              y1="29"
+              x2="150"
+              y2="38"
+            />
+          </svg>
+          <div class="clock-content">
+            <span class="mode-label" id="timerMode">专注</span>
+            <span class="timer-value" id="timerDisplay" role="timer" aria-label="剩余时间" aria-live="off">35:00</span>
+            <span class="timer-hint" id="timerHint">准备好了，就开始</span>
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn-primary" id="startBtn" type="button">开始专注</button>
+          <button class="btn-secondary" id="resetBtn" type="button">重置</button>
+          <button class="btn-ghost" id="skipBtn" type="button" title="跳过当前阶段">跳过</button>
+        </div>
+        <div class="meta-row">
+          <span id="sessions">今日 0 次专注</span>
+          <span><strong>35</strong> 分钟专注 <span class="meta-dot">·</span> <strong>5</strong> 分钟休息</span>
+        </div>
+        </section>
+        <p class="focus-footer">想起要做的事？点击右上角的麦克风，先记下来。</p>
+      </main>
+    </div>
+
+    <script type="module">
+      import { $, setupPomodoro, setupVoice, setupWatchdog } from "./app.js";
+
+      setupWatchdog();
+
+      // Build clock-face tick marks (12 hour ticks only).
+      const NS = "http://www.w3.org/2000/svg";
+      const ticks = $("#clockTicks");
+      for (let i = 0; i < 12; i += 1) {
+        const a = (i / 12) * Math.PI * 2;
+        const r1 = 137;
+        const r2 = 145;
+        const line = document.createElementNS(NS, "line");
+        line.setAttribute("x1", String(150 + r1 * Math.sin(a)));
+        line.setAttribute("y1", String(150 - r1 * Math.cos(a)));
+        line.setAttribute("x2", String(150 + r2 * Math.sin(a)));
+        line.setAttribute("y2", String(150 - r2 * Math.cos(a)));
+        line.setAttribute("class", "tick major");
+        ticks.appendChild(line);
+      }
+
+      setupPomodoro({
+        displayEl: $("#timerDisplay"),
+        modeEl: $("#timerMode"),
+        hintEl: $("#timerHint"),
+        startBtn: $("#startBtn"),
+        resetBtn: $("#resetBtn"),
+        skipBtn: $("#skipBtn"),
+        sessionEl: $("#sessions"),
+        badgeEl: $("#clockBadge"),
+        progressEl: $("#clockProgress"),
+        handEl: $("#clockHand"),
+        faceEl: $(".clock-face"),
+      });
+
+      setupVoice({
+        micBtn: $("#micBtn"),
+        statusEl: $("#voiceStatus"),
+        faceEl: $(".clock-face"),
+      });
+    </script>
+  </body>
+</html>

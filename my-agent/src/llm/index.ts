@@ -2,7 +2,7 @@
  * LLM 接口层。
  *
  * 默认走本地 vLLM（OpenAI-compatible chat completions）：
- *   http://127.0.0.1:8000/v1 ，模型 id 从 /v1/models 自动探测（默认 deepseek-v4-flash）。
+ *   http://127.0.0.1:8800/v1 ，模型 id 从 /v1/models 自动探测（默认 deepseek-v4-flash）。
  * 本地 vLLM 不校验 key，返回占位 "EMPTY" 即可。
  *
  * 如需换成其他 provider（如 OpenRouter），用 pi-ai 的 getModel()：
@@ -35,7 +35,7 @@ export interface LlmConfig {
 const DEFAULTS: LlmConfig = {
   provider: "vllm-local",
   model: "deepseek-v4-flash",
-  baseUrl: "http://127.0.0.1:8000/v1",
+  baseUrl: "http://127.0.0.1:8800/v1",
   contextWindow: 131072,
   maxTokens: 8192,
 };

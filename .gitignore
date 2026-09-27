@@ -1,4 +1,5 @@
 data/.agent-status.json
+data/.project-progress.json
 data/tmp/
 data/todos.json
 data/inbox.md

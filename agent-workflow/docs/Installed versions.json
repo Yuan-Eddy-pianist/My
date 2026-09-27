@@ -1,0 +1,23 @@
+{
+  "verified_on": "2026-09-27",
+  "versions": {
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "gh-axi": "0.1.35",
+    "tasks-axi": "0.2.6",
+    "quota-axi": "0.1.55",
+    "lavish-axi": "0.1.79",
+    "chrome-devtools-axi": "0.1.35",
+    "chrome-devtools-mcp": "1.10.1",
+    "gnhf": "0.1.50",
+    "herdr": "0.9.1",
+    "treehouse": "2.0.1 (Firstmate verified pin)",
+    "no-mistakes": "1.79.0",
+    "wezterm": "20240203-110809-5046fc22",
+    "bash": "5.3.20",
+    "gh": "2.101.0",
+    "pi-web-access": "0.32.0",
+    "pi-extension-codex-fast-mode": "0.2.7",
+    "@openai/codex": "0.157.1"
+  },
+  "firstmate_commit": "5a9880b42f2556ac63b8371455241c0262ad8ffc"
+}

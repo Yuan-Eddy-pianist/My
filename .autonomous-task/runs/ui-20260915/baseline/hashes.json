@@ -1,0 +1,9 @@
+{
+  "app/index.html": "821e26ebd89b4e28cbc6bbe83cf7ce6dee72ed4eccbc932a313eafca8ea4d9be",
+  "app/todos.html": "1bda777106ab1f4cae42fc1da9dd0f0ac6848f3aa1900eaadaf4846449658f6d",
+  "app/styles.css": "0b63340707a1202a0db6988e30e3804c32e8f5fd7cf345a1097f441083435b10",
+  "app/app.js": "dffe2773860743a1b92b3188c0ead7a278bca19ee30c5c49a89d729c95c6531a",
+  "serve.py": "02a72348f551bc5160802980be00dcef2c197de65a2642265b70bd63c25219ab",
+  "project_progress.py": "fe91ae4c1fb9e7a7361c1fa9d9e955888d2fca783d82750ccbb91e3436774077",
+  "data/todos.json": "1b448e2252bb1f6d481772c77d797714ff6a05a3997efc44adbe29afd1956d49"
+}

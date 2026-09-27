@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import mimetypes
 import os
 import platform
@@ -18,15 +19,20 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from project_progress import add_progress, clean_progress, inspect_project
+
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 INBOX = DATA / "inbox.md"
+INBOX_PENDING = DATA / ".inbox-pending.md"
 ARCHIVE = DATA / "inbox-archive.md"
 WORKSPACE = DATA / "todos.json"  # projects + short-term todos + reminders
 STATUS = DATA / ".agent-status.json"
+PROGRESS_STATE = DATA / ".project-progress.json"
 ENV_FILE = ROOT / ".env"
 HOST = "127.0.0.1"
 PORT = 8765
+INBOX_HEADER = "# Inbox\n\nVoice notes land here and are processed automatically.\n"
 
 
 def load_dotenv(path: Path = ENV_FILE) -> None:
@@ -83,51 +89,25 @@ Workspace file: data/todos.json with three arrays:
    If you classified ANY item into tasks/reminders/projects, you MUST write
    data/todos.json in this run. Claiming you created a task/reminder without actually
    writing the file is a FAILED run. If every item was filler/tests, skip this write.
-6. ONLY AFTER step 5 is done: append the processed raw inbox content to
-   data/inbox-archive.md under a ## timestamp heading (always archive, even when you
-   create nothing).
-7. ONLY AFTER step 6 is done: reset data/inbox.md to exactly:
-
-# Inbox
-
-Voice notes land here and are processed automatically.
-
-8. Do not ask questions. Do not edit app/, serve.py, or schedule/.
-9. Reply with one short line summarizing what you changed, or "No clear items; archived only."
+6. NEVER edit data/inbox.md or data/inbox-archive.md. The server verifies your
+   workspace changes, then appends the original note to the archive and clears the
+   inbox. Only write data/todos.json.
+7. Do not ask questions. Do not edit app/, serve.py, or schedule/.
+8. Reply with one short line summarizing what you actually saved. If ALL notes are
+   filler/tests with no actionable items, reply exactly "No clear items; archived only."
+   If ALL requested items already exist unchanged, reply exactly
+   "No changes; items already exist." Never use either response for an unsaved item.
 """
 
-PROGRESS_PROMPT = """You are the My workspace project progress updater. Today's date: {today}.
-
-Workspace file: data/todos.json has a "projects" array; each project has:
-id, title, path (absolute local directory), status, goal, progress, created, updated.
-
-Follow these steps IN ORDER:
-1. Read data/todos.json with the read tool.
-2. For each project where status == "active" and its path exists and is a git repo,
-   inspect recent activity:
-   - git -C <path> log --since="7 days ago" --oneline --decorate
-   - git -C <path> status --short
-   Skip projects whose path is missing or not a git repo.
-3. REQUIRED FINAL STEP — rewrite the complete data/todos.json with the write tool
-   (do NOT use the edit tool). In the projects array, for each active project:
-   - prepend one concise new progress entry dated {today} (format "{today}：…")
-     summarizing the real git changes, or "本周无改动" if nothing happened
-   - keep at most the 5 most recent dated entries in "progress"
-   - set "updated" to {today}
-   Keep tasks/reminders and all other fields unchanged. Pretty JSON, 2-space indent.
-
-CRITICAL:
-- The update is NOT done until the write call succeeds. Never claim "已更新" or
-  "updated" in your reply unless the write tool call actually succeeded.
-- Ground every claim in git output — never invent commits or changes.
-- Only modify data/todos.json. Do not touch any other file or any project directory.
-- Do not ask questions.
-- After the write succeeds, reply with one short line per project: title + new entry.
-"""
+PROGRESS_JOB = "project-progress"
 
 _job_queue: queue.Queue[tuple | None] = queue.Queue()
 _voice_queue: queue.Queue[dict | None] = queue.Queue()
 _status_lock = threading.Lock()
+_inbox_lock = threading.Lock()
+_workspace_lock = threading.RLock()
+_worker_start_lock = threading.Lock()
+_workspace_agent_active = False
 _worker_started = False
 _voice_worker_started = False
 _whisper_model = None
@@ -144,6 +124,49 @@ def empty_workspace() -> dict:
     return {"projects": [], "tasks": [], "reminders": []}
 
 
+class WorkspaceDataError(RuntimeError):
+    """The persisted workspace exists but is not valid JSON."""
+
+
+class WorkspaceConflict(RuntimeError):
+    """A client attempted to replace a workspace version it did not read."""
+
+
+class WorkspaceBusy(RuntimeError):
+    """The agent currently owns the workspace update transaction."""
+
+
+def atomic_write(path: Path, content: str | bytes) -> None:
+    """Durably replace a file so readers see either the old or new contents."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    binary = isinstance(content, bytes)
+    mode = "wb" if binary else "w"
+    kwargs = {} if binary else {"encoding": "utf-8"}
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode=mode,
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            delete=False,
+            **kwargs,
+        ) as tmp:
+            tmp_name = tmp.name
+            tmp.write(content)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        if path.exists():
+            os.chmod(tmp_name, path.stat().st_mode & 0o777)
+        os.replace(tmp_name, path)
+        tmp_name = None
+    finally:
+        if tmp_name:
+            try:
+                os.unlink(tmp_name)
+            except FileNotFoundError:
+                pass
+
+
 def normalize_workspace(payload: object) -> dict:
     """Accept legacy {tasks} or full workspace; always return the three arrays."""
     if not isinstance(payload, dict):
@@ -158,22 +181,84 @@ def normalize_workspace(payload: object) -> dict:
     }
 
 
-def read_workspace() -> dict:
+def _workspace_version(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _read_workspace_unlocked() -> tuple[dict, str]:
     if not WORKSPACE.exists():
-        return empty_workspace()
+        data = empty_workspace()
+        raw = (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode()
+        return data, _workspace_version(raw)
+    raw = WORKSPACE.read_bytes()
     try:
-        return normalize_workspace(json.loads(WORKSPACE.read_text(encoding="utf-8")))
-    except json.JSONDecodeError:
-        return empty_workspace()
+        data = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise WorkspaceDataError(f"{WORKSPACE} is not valid JSON: {exc}") from exc
+    return normalize_workspace(data), _workspace_version(raw)
+
+
+def read_workspace() -> dict:
+    with _workspace_lock:
+        data, _ = _read_workspace_unlocked()
+        return data
+
+
+def read_workspace_snapshot() -> dict:
+    with _workspace_lock:
+        data, version = _read_workspace_unlocked()
+        return {**data, "_version": version}
 
 
 def write_workspace(payload: dict) -> dict:
     data = normalize_workspace(payload)
-    WORKSPACE.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    with _workspace_lock:
+        atomic_write(WORKSPACE, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return data
+
+
+def update_workspace(payload: dict, expected_version: object) -> tuple[dict, str]:
+    """Apply an HTTP update only if it is based on the current workspace."""
+    with _workspace_lock:
+        if _workspace_agent_active:
+            raise WorkspaceBusy("my-agent is updating the workspace; retry after it finishes")
+        current, version = _read_workspace_unlocked()
+        if not isinstance(expected_version, str) or expected_version != version:
+            raise WorkspaceConflict("workspace changed; refresh and retry your edit")
+        for key in ("projects", "tasks", "reminders"):
+            if key in payload and isinstance(payload[key], list):
+                current[key] = payload[key]
+        raw = json.dumps(normalize_workspace(current), indent=2, ensure_ascii=False) + "\n"
+        atomic_write(WORKSPACE, raw)
+        return current, _workspace_version(raw.encode())
+
+
+def append_pending_inbox(text: str) -> None:
+    """Persist a note somewhere the active agent never resets."""
+    block = f"\n## {now_iso()}\n\n{text}\n"
+    with _inbox_lock:
+        previous = INBOX_PENDING.read_text(encoding="utf-8") if INBOX_PENDING.exists() else ""
+        atomic_write(INBOX_PENDING, previous + block)
+
+
+def stage_pending_inbox() -> bool:
+    """Move queued notes into the agent-visible inbox immediately before a run."""
+    with _inbox_lock:
+        pending = INBOX_PENDING.read_text(encoding="utf-8") if INBOX_PENDING.exists() else ""
+        if not pending.strip():
+            return False
+        current = INBOX.read_text(encoding="utf-8") if INBOX.exists() else INBOX_HEADER
+        atomic_write(INBOX, current.rstrip() + "\n" + pending)
+        # Write the inbox first: a crash can duplicate a note, but cannot lose it.
+        atomic_write(INBOX_PENDING, "")
+        return True
+
+
+def read_visible_inbox() -> str:
+    with _inbox_lock:
+        current = INBOX.read_text(encoding="utf-8") if INBOX.exists() else INBOX_HEADER
+        pending = INBOX_PENDING.read_text(encoding="utf-8") if INBOX_PENDING.exists() else ""
+        return current.rstrip() + ("\n" + pending if pending else "\n")
 
 
 def path_info(raw: str) -> dict:
@@ -209,12 +294,11 @@ def ensure_data() -> None:
     (DATA / "weekly").mkdir(exist_ok=True)
     (DATA / "tmp").mkdir(exist_ok=True)
     if not INBOX.exists():
-        INBOX.write_text(
-            "# Inbox\n\nVoice notes land here and are processed automatically.\n",
-            encoding="utf-8",
-        )
+        atomic_write(INBOX, INBOX_HEADER)
+    if not INBOX_PENDING.exists():
+        atomic_write(INBOX_PENDING, "")
     if not ARCHIVE.exists():
-        ARCHIVE.write_text("# Inbox archive\n", encoding="utf-8")
+        atomic_write(ARCHIVE, "# Inbox archive\n")
     if not WORKSPACE.exists():
         write_workspace(empty_workspace())
     else:
@@ -461,11 +545,160 @@ MY_AGENT_DIR = ROOT / "my-agent"
 MY_AGENT_ENTRY = MY_AGENT_DIR / "dist" / "index.js"
 
 
+def verified_inbox_result(before: dict, output: str) -> str:
+    """Validate persisted records, and describe changes without trusting agent prose."""
+    try:
+        after = json.loads(WORKSPACE.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise WorkspaceDataError(f"Agent did not save a valid workspace: {exc}") from exc
+    if not isinstance(after, dict):
+        raise WorkspaceDataError("Agent workspace must be a JSON object")
+    changes = []
+    for key in ("projects", "tasks", "reminders"):
+        records = after.get(key)
+        if not isinstance(records, list):
+            raise WorkspaceDataError(f"Agent workspace is missing the {key} array")
+        current = {}
+        for item in records:
+            if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not item["id"]:
+                raise WorkspaceDataError(f"Agent saved an invalid {key} record")
+            if item["id"] in current:
+                raise WorkspaceDataError(f"Agent saved duplicate {key} ids")
+            current[item["id"]] = item
+        previous = {item["id"]: item for item in before[key]}
+        if previous.keys() - current.keys():
+            raise WorkspaceDataError(f"Agent removed existing {key}; original data retained")
+        added = updated = 0
+        for item_id, item in current.items():
+            old_item = previous.get(item_id)
+            if item == old_item:
+                continue
+            required = set(old_item) if old_item is not None else (
+                {"id", "title", "path", "status", "goal", "progress", "created", "updated"}
+                if key == "projects" else {"id", "title", "due", "status", "created", "notes"}
+            )
+            if required - item.keys():
+                raise WorkspaceDataError(f"Agent removed or omitted required {key} fields")
+            if not isinstance(item.get("title"), str) or not item["title"].strip():
+                raise WorkspaceDataError(f"Agent saved a {key} record without a title")
+            allowed_statuses = ("active", "paused", "done") if key == "projects" else ("open", "done")
+            if item.get("status") not in allowed_statuses:
+                raise WorkspaceDataError(f"Agent saved a {key} record with an invalid status")
+            if key == "reminders" and item.get("due") is None and not (
+                old_item is not None and "due" in old_item and old_item["due"] is None
+            ):
+                raise WorkspaceDataError("Agent saved a reminder without a due date")
+            if key != "projects" and item.get("due") is not None:
+                try:
+                    due = item["due"]
+                    if not isinstance(due, str) or datetime.strptime(due, "%Y-%m-%d").strftime("%Y-%m-%d") != due:
+                        raise ValueError("expected YYYY-MM-DD")
+                except ValueError as exc:
+                    raise WorkspaceDataError(f"Agent saved an invalid {key} due date") from exc
+            if old_item is not None:
+                # Refreshing bookkeeping dates alone does not apply an inbox request.
+                meaningful_keys = (item.keys() | old_item.keys()) - {"created", "updated"}
+                if any(item.get(field) != old_item.get(field) for field in meaningful_keys):
+                    updated += 1
+            else:
+                added += 1
+        if added:
+            changes.append(f"{added} {key[:-1] if added == 1 else key} added")
+        if updated:
+            changes.append(f"{updated} {key[:-1] if updated == 1 else key} updated")
+    if changes:
+        return "Saved: " + ", ".join(changes) + "."
+    final_line = output.strip().splitlines()[-1] if output.strip() else ""
+    no_changes = {
+        "No clear items; archived only.": "No clear items; archived only. No workspace changes.",
+        "No changes; items already exist.": "No changes; items already exist. Note archived.",
+    }
+    if final_line in no_changes:
+        return no_changes[final_line]
+    raise WorkspaceDataError("Agent reported completion without saving any workspace changes")
+
+
+def run_inbox_agent(note_preview: str, node: str) -> None:
+    """Own inbox completion: verify saves before archiving; restore failed attempts."""
+    global _workspace_agent_active
+    snapshots: dict[Path, bytes | None] = {}
+
+    def restore() -> None:
+        with _workspace_lock, _inbox_lock:
+            for path, content in snapshots.items():
+                if content is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    atomic_write(path, content)
+
+    with _workspace_lock:
+        _workspace_agent_active = True
+    try:
+        with _workspace_lock, _inbox_lock:
+            before = read_workspace()
+            snapshots = {
+                path: path.read_bytes() if path.exists() else None
+                for path in (WORKSPACE, INBOX, ARCHIVE)
+            }
+        prompt = AGENT_PROMPT + f"\nCurrent local date/time: {now_iso()}\n"
+        # An inherited override must not redirect the agent away from this server's data.
+        env = {**os.environ, "AGENT_WORKSPACE": str(ROOT)}
+        for attempt in range(2):
+            write_status("running", "my-agent is updating your workspace…", lastNote=note_preview)
+            proc = subprocess.run(
+                [node, str(MY_AGENT_ENTRY), prompt], cwd=str(ROOT),
+                capture_output=True, text=True, timeout=900, env=env,
+            )
+            out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
+            if proc.returncode:
+                raise RuntimeError(err or out or f"Agent failed (exit {proc.returncode})")
+            try:
+                summary = verified_inbox_result(before, out)
+            except WorkspaceDataError as exc:
+                restore()
+                if attempt == 1:
+                    raise
+                write_status(
+                    "running", "Agent did not save valid changes — retrying with the original note…",
+                    lastNote=note_preview, lastResult=out[-2000:],
+                )
+                prompt += (
+                    f"\nYour previous attempt failed verification: {exc}. "
+                    "All original files have been restored. Read the inbox again and "
+                    "use the write tool to save the merged data/todos.json before finishing.\n"
+                )
+                continue
+            # Ignore any model edits to these files: archive the original input once,
+            # preserving all existing history. New arrivals remain in INBOX_PENDING.
+            with _inbox_lock:
+                original = (snapshots[INBOX] or b"").decode("utf-8")
+                body = original.removeprefix(INBOX_HEADER.rstrip()).strip()
+                archive = (snapshots[ARCHIVE] or b"# Inbox archive\n").decode("utf-8")
+                if body:
+                    separator = "" if archive.endswith("\n\n") else ("\n" if archive.endswith("\n") else "\n\n")
+                    archive += separator + body + "\n"
+                atomic_write(ARCHIVE, archive)
+                atomic_write(INBOX, INBOX_HEADER)
+            write_status("done", summary, lastNote=note_preview, lastResult=out[-2000:])
+            return
+    except Exception as exc:  # noqa: BLE001
+        # Restore before publishing failure, so a refresh/retry sees the original data.
+        restore()
+        write_status(
+            "error", f"Note not processed; original note retained: {str(exc)[-600:]}",
+            lastNote=note_preview, lastResult=traceback.format_exc()[-2000:],
+        )
+    finally:
+        with _workspace_lock:
+            _workspace_agent_active = False
+
+
 def run_agent_once(
     note_preview: str,
     prompt: str = AGENT_PROMPT,
     verify: "callable[[], bool] | None" = None,
 ) -> None:
+    global _workspace_agent_active
     node = shutil.which("node")
     if not node:
         write_status(
@@ -482,6 +715,10 @@ def run_agent_once(
         )
         return
 
+    if prompt == AGENT_PROMPT:
+        run_inbox_agent(note_preview, node)
+        return
+
     write_status(
         "running",
         "my-agent is updating your workspace…",
@@ -489,81 +726,168 @@ def run_agent_once(
     )
     cmd = [node, str(MY_AGENT_ENTRY), prompt]
     attempts = 2 if verify else 1
-    for attempt in range(1, attempts + 1):
-        try:
-            proc = subprocess.run(
-                cmd,
-                cwd=str(ROOT),
-                capture_output=True,
-                text=True,
-                timeout=900,
-                env=os.environ.copy(),
-            )
-            out = (proc.stdout or "").strip()
-            err = (proc.stderr or "").strip()
-            summary = out.splitlines()[-1] if out else (err.splitlines()[-1] if err else "")
-            if proc.returncode != 0:
-                write_status(
-                    "error",
-                    summary or f"Agent failed (exit {proc.returncode}).",
-                    lastNote=note_preview,
-                    lastResult=(out or err)[-2000:],
+    with _workspace_lock:
+        # Block versioned UI writes before the subprocess can read its baseline.
+        workspace_before = WORKSPACE.read_bytes() if WORKSPACE.exists() else None
+        _workspace_agent_active = True
+    try:
+        for attempt in range(1, attempts + 1):
+            try:
+                proc = subprocess.run(
+                    cmd,
+                    cwd=str(ROOT),
+                    capture_output=True,
+                    text=True,
+                    timeout=900,
+                    env=os.environ.copy(),
                 )
-                return
-            if verify and not verify():
-                if attempt < attempts:
+                out = (proc.stdout or "").strip()
+                err = (proc.stderr or "").strip()
+                summary = out.splitlines()[-1] if out else (err.splitlines()[-1] if err else "")
+                if proc.returncode != 0:
                     write_status(
-                        "running",
-                        "Agent finished but made no changes — retrying once…",
+                        "error",
+                        summary or f"Agent failed (exit {proc.returncode}).",
+                        lastNote=note_preview,
+                        lastResult=(out or err)[-2000:],
+                    )
+                    return
+                try:
+                    # Never leave a malformed agent write in place.
+                    read_workspace()
+                except WorkspaceDataError:
+                    if workspace_before is not None:
+                        with _workspace_lock:
+                            atomic_write(WORKSPACE, workspace_before)
+                    raise
+                if verify and not verify():
+                    if attempt < attempts:
+                        write_status(
+                            "running",
+                            "Agent finished but made no changes — retrying once…",
+                            lastNote=note_preview,
+                            lastResult=out[-2000:] if out else "",
+                        )
+                        continue
+                    write_status(
+                        "error",
+                        "Agent finished without applying changes (gave up after retry).",
                         lastNote=note_preview,
                         lastResult=out[-2000:] if out else "",
                     )
-                    continue
+                    return
                 write_status(
-                    "error",
-                    "Agent finished without applying changes (gave up after retry).",
+                    "done",
+                    summary or "Workspace updated.",
                     lastNote=note_preview,
                     lastResult=out[-2000:] if out else "",
                 )
                 return
-            write_status(
-                "done",
-                summary or "Workspace updated.",
-                lastNote=note_preview,
-                lastResult=out[-2000:] if out else "",
-            )
-            return
-        except subprocess.TimeoutExpired:
-            write_status(
-                "error",
-                "Agent timed out after 15 minutes (local model is slow; consider a smaller/faster model).",
-                lastNote=note_preview,
-            )
-            return
-        except Exception as exc:  # noqa: BLE001
-            write_status(
-                "error",
-                f"Agent launch failed: {exc}",
-                lastNote=note_preview,
-                lastResult=traceback.format_exc()[-2000:],
-            )
-            return
+            except subprocess.TimeoutExpired:
+                write_status(
+                    "error",
+                    "Agent timed out after 15 minutes (local model is slow; consider a smaller/faster model).",
+                    lastNote=note_preview,
+                )
+                return
+            except Exception as exc:  # noqa: BLE001
+                write_status(
+                    "error",
+                    f"Agent launch failed: {exc}",
+                    lastNote=note_preview,
+                    lastResult=traceback.format_exc()[-2000:],
+                )
+                return
+    finally:
+        with _workspace_lock:
+            _workspace_agent_active = False
 
 
-def progress_applied_today() -> bool:
-    """True if any active project's `updated` field was bumped to today
-    (vacuously true when there is nothing to update)."""
-    today = datetime.now().date().isoformat()
-    try:
-        data = json.loads(WORKSPACE.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        return False
-    active = [
-        p for p in data.get("projects", []) if p.get("status", "active") == "active"
+def summarize_progress(inspections: list[dict]) -> dict[str, str]:
+    evidence = [
+        {key: item[key] for key in ("id", "title", "commits")}
+        for item in inspections if item["commits"]
     ]
-    if not active:
-        return True
-    return any(str(p.get("updated", "")).startswith(today) for p in active)
+    if not evidence:
+        return {}
+    entry = MY_AGENT_DIR / "dist" / "summarize.js"
+    if not entry.is_file():
+        raise RuntimeError("Build the progress summarizer: cd my-agent && npm run build")
+    proc = subprocess.run(
+        [shutil.which("node") or "node", str(entry)],
+        input=json.dumps(evidence, ensure_ascii=False),
+        cwd=str(ROOT), capture_output=True, text=True, timeout=900,
+    )
+    if proc.returncode:
+        raise RuntimeError(proc.stderr.strip() or "Progress summarizer failed")
+    output = proc.stdout.strip()
+    if output.startswith("```"):
+        output = "\n".join(output.splitlines()[1:-1])
+    summaries = json.loads(output)
+    expected = {item["id"] for item in evidence}
+    if not isinstance(summaries, dict) or set(summaries) != expected:
+        raise ValueError("Progress summary must include every inspected project")
+    if any(not isinstance(value, str) or not value.strip() for value in summaries.values()):
+        raise ValueError("Progress summaries must be nonempty text")
+    return summaries
+
+
+def run_progress_once(note_preview: str) -> None:
+    """Python owns inspection, checkpoints, dates and writes; the LLM summarizes."""
+    global _workspace_agent_active
+    with _workspace_lock:
+        _workspace_agent_active = True
+    try:
+        write_status("running", "正在检查项目的新提交…", lastNote=note_preview)
+        checked_at = now_iso()
+        data = read_workspace()
+        checkpoints = json.loads(PROGRESS_STATE.read_text()) if PROGRESS_STATE.exists() else {}
+        inspections = []
+        projects = [p for p in data["projects"] if p.get("status", "active") == "active"]
+        for project in projects:
+            inspection = inspect_project(project, checkpoints.get(project["id"], {}), checked_at)
+            if inspection is not None:
+                inspections.append(inspection)
+        summaries = summarize_progress(inspections)
+        by_id = {item["id"]: item for item in inspections}
+        results = []
+        for project in projects:
+            project["progress"] = clean_progress(project.get("progress", ""))
+            item = by_id.get(project["id"])
+            if item is None:
+                results.append(f"{project['title']}：跳过（目录无效或没有 Git 提交）")
+                continue
+            summary = summaries.get(project["id"])
+            if summary:
+                project["progress"] = add_progress(project["progress"], checked_at[:10], summary)
+                project["updated"] = checked_at
+            checkpoints[project["id"]] = {
+                "path": item["path"], "head": item["head"], "checkedAt": checked_at,
+            }
+            detail = summary or "无新改动"
+            if item["dirty"]:
+                detail += "；工作区有未提交修改"
+            results.append(f"{project['title']}：{detail}")
+        write_workspace(data)
+        atomic_write(PROGRESS_STATE, json.dumps(checkpoints, indent=2, ensure_ascii=False) + "\n")
+        write_status(
+            "done", f"已检查 {len(inspections)} 个项目，更新 {len(summaries)} 条进度。",
+            lastNote=note_preview, lastResult="\n".join(results),
+        )
+    except Exception as exc:  # noqa: BLE001
+        write_status("error", f"Project progress failed: {exc}", lastNote=note_preview)
+    finally:
+        with _workspace_lock:
+            _workspace_agent_active = False
+
+
+def run_queued_job(job: tuple) -> None:
+    if job[1] == PROGRESS_JOB:
+        run_progress_once(job[0])
+    else:
+        if job[1] == AGENT_PROMPT:
+            stage_pending_inbox()
+        run_agent_once(*job)
 
 
 def worker_loop() -> None:
@@ -584,12 +908,12 @@ def worker_loop() -> None:
                 if nxt is None:
                     _job_queue.task_done()
                     for job in jobs.values():
-                        run_agent_once(*job)
+                        run_queued_job(job)
                     return
                 jobs[nxt[1]] = nxt
                 _job_queue.task_done()
             for job in jobs.values():
-                run_agent_once(*job)
+                run_queued_job(job)
         finally:
             _job_queue.task_done()
 
@@ -601,10 +925,11 @@ def enqueue_process(
     verify: "callable[[], bool] | None" = None,
 ) -> dict:
     global _worker_started
-    if not _worker_started:
-        t = threading.Thread(target=worker_loop, name="my-agent-worker", daemon=True)
-        t.start()
-        _worker_started = True
+    with _worker_start_lock:
+        if not _worker_started:
+            _worker_started = True
+            t = threading.Thread(target=worker_loop, name="my-agent-worker", daemon=True)
+            t.start()
     pending = _job_queue.qsize()
     state = read_status().get("state")
     if state in ("running", "transcribing"):
@@ -630,12 +955,10 @@ PROGRESS_MINUTE = int(os.environ.get("MY_PROGRESS_MINUTE", "0"))
 
 def enqueue_progress() -> dict:
     """Enqueue a project-progress git inspection job (daily schedule or manual)."""
-    today = datetime.now().date().isoformat()
     return enqueue_process(
         "每日项目进度巡检",
-        prompt=PROGRESS_PROMPT.replace("{today}", today),
-        running_msg="my-agent 正在巡检项目 git 改动…",
-        verify=progress_applied_today,
+        prompt=PROGRESS_JOB,
+        running_msg="正在排队检查项目的新提交…",
     )
 
 
@@ -655,7 +978,7 @@ def progress_scheduler_loop() -> None:
 
 
 def inbox_cleared() -> bool:
-    """True when inbox.md holds only the canonical header (agent finished step 7)."""
+    """True when inbox.md holds only the canonical header; not proof of a save."""
     try:
         text = INBOX.read_text(encoding="utf-8")
     except OSError:
@@ -667,16 +990,13 @@ def inbox_cleared() -> bool:
 
 
 def append_inbox_and_process(text: str) -> dict:
-    block = f"\n## {now_iso()}\n\n{text}\n"
-    with INBOX.open("a", encoding="utf-8") as f:
-        f.write(block)
+    append_pending_inbox(text)
     preview = text if len(text) <= 120 else text[:117] + "…"
     return {
         "ok": True,
         "text": text,
-        # verify: the local model sometimes "completes" without touching any
-        # file — at minimum the inbox must be reset; retry once otherwise.
-        "agent": enqueue_process(preview, verify=inbox_cleared),
+        # Inbox completion verifies persisted records before archiving the input.
+        "agent": enqueue_process(preview),
     }
 
 
@@ -736,10 +1056,11 @@ def enqueue_voice(raw: bytes, filename: str = "audio.webm") -> dict:
         job_id = f"v{_job_seq}"
         _voice_pending += 1
         pending = _voice_pending
-    if not _voice_worker_started:
-        t = threading.Thread(target=voice_worker_loop, name="my-voice-worker", daemon=True)
-        t.start()
-        _voice_worker_started = True
+    with _worker_start_lock:
+        if not _voice_worker_started:
+            _voice_worker_started = True
+            t = threading.Thread(target=voice_worker_loop, name="my-voice-worker", daemon=True)
+            t.start()
     _voice_queue.put({"id": job_id, "path": tmp_path, "filename": filename})
     status = write_status(
         "queued",
@@ -787,7 +1108,10 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path in ("/api/todos", "/api/workspace"):
-            self._send_json(200, read_workspace())
+            try:
+                self._send_json(200, read_workspace_snapshot())
+            except WorkspaceDataError as exc:
+                self._send_json(500, {"ok": False, "error": str(exc)})
             return
 
         if path == "/api/path":
@@ -797,7 +1121,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/inbox":
-            self._send_json(200, {"text": INBOX.read_text(encoding="utf-8")})
+            self._send_json(200, {"text": read_visible_inbox()})
             return
 
         if path == "/api/agent":
@@ -878,9 +1202,7 @@ class Handler(BaseHTTPRequestHandler):
             if process:
                 self._send_json(200, append_inbox_and_process(text))
             else:
-                block = f"\n## {now_iso()}\n\n{text}\n"
-                with INBOX.open("a", encoding="utf-8") as f:
-                    f.write(block)
+                append_pending_inbox(text)
                 self._send_json(200, {"ok": True, "appended": text})
             return
 
@@ -910,13 +1232,15 @@ class Handler(BaseHTTPRequestHandler):
                     },
                 )
                 return
-            # Merge with existing so a partial PUT (e.g. tasks-only) keeps other arrays.
-            current = read_workspace()
-            for key in ("projects", "tasks", "reminders"):
-                if key in payload and isinstance(payload[key], list):
-                    current[key] = payload[key]
-            write_workspace(current)
-            self._send_json(200, {"ok": True})
+            try:
+                _, version = update_workspace(payload, payload.get("_version"))
+            except (WorkspaceConflict, WorkspaceBusy) as exc:
+                self._send_json(409, {"ok": False, "error": str(exc)})
+                return
+            except WorkspaceDataError as exc:
+                self._send_json(500, {"ok": False, "error": str(exc)})
+                return
+            self._send_json(200, {"ok": True, "_version": version})
             return
 
         self._send_json(404, {"ok": False, "error": "not found"})

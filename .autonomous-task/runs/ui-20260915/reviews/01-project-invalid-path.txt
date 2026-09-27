@@ -1,0 +1,31 @@
+Browser tab: 1196902758, Title: "My · 工作台", URL: "http://127.0.0.1:8875/app/todos.html".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 57-80
+~					55 text 路径无效：not found
+~					56 button 添加项目
++					57 button 取消, ID: cancelProjectBtn
++				58 container
++					59 text 长期项目
++					60 heading 个人作品集, Value: 3
++						61 text 个人作品集
++					62 pop up button (collapsed, settable) Description: 个人作品集的状态, Value: 进行中, Secondary Actions: Expand
++						63 menu
++							64 (selected) 进行中
++							65 暂停
++							66 完成
++					67 text 整理近期作品，让每一次尝试都有迹可循。 2026-09-15：继续打磨作品介绍，挑选三件最能代表自己的作品。
++					68 button (collapsed) 项目详情与进展, Secondary Actions: Expand
++						69 text 项目详情与进展
++				70 container
++					71 text 长期项目
++					72 heading 阅读与写作, Value: 3
++						73 text 阅读与写作
++					74 pop up button (collapsed, settable) Description: 阅读与写作的状态, Value: 暂停, Secondary Actions: Expand
++						75 menu
++							76 进行中
++							77 (selected) 暂停
++							78 完成
++					79 text 每周读完一本书，留下自己的思考。 2026-09-15：读完第一章，整理了三个值得继续思考的问题。
++					80 button (collapsed) 项目详情与进展, Secondary Actions: Expand
++						81 text 项目详情与进展
+The focused UI element is 1 AXWebArea My · 工作台, URL: 127.0.0.1:8875/app/todos.html

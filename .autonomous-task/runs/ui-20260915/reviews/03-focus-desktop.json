@@ -1,0 +1,15 @@
+{
+  "copy": "专注\n专注\n35:00\n开始专注\n重置\n跳过\n今日 1 次专注\n35 分钟专注 · 5 分钟休息",
+  "dial": {
+    "centerX": 720,
+    "centerY": 450,
+    "height": 320,
+    "width": 320
+  },
+  "scrollWidth": 1440,
+  "viewport": {
+    "height": 900,
+    "width": 1440
+  },
+  "voice": "随时说一句，记下想做的事"
+}

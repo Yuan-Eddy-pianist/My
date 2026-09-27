@@ -137,6 +137,16 @@
         await saveWorkspace(state);
       }
 
+      async function recoverFailedSave(err, rollback) {
+        try {
+          await load();
+        } catch {
+          rollback();
+          render();
+        }
+        alert(err.message || String(err));
+      }
+
       function displayNotes(raw) {
         const text = String(raw || "")
           .split("\n")
@@ -339,13 +349,15 @@
             const list = kind === "reminder" ? state.reminders : state.tasks;
             const item = list.find((t) => t.id === id);
             if (!item) return;
+            const previousStatus = item.status;
             item.status = el.checked ? "done" : "open";
             try {
               await persist();
               render();
             } catch (err) {
-              el.checked = !el.checked;
-              alert(err.message || String(err));
+              await recoverFailedSave(err, () => {
+                item.status = previousStatus;
+              });
             }
           });
         });
@@ -363,8 +375,9 @@
               await persist();
               render();
             } catch (err) {
-              state[key] = before;
-              alert(err.message || String(err));
+              await recoverFailedSave(err, () => {
+                state[key] = before;
+              });
             }
           });
         });
@@ -374,14 +387,18 @@
             const id = el.getAttribute("data-project-status");
             const project = state.projects.find((p) => p.id === id);
             if (!project) return;
+            const previousStatus = project.status;
+            const previousUpdated = project.updated;
             project.status = el.value;
             project.updated = nowIsoLocal();
             try {
               await persist();
               render();
             } catch (err) {
-              alert(err.message || String(err));
-              load().catch(() => {});
+              await recoverFailedSave(err, () => {
+                project.status = previousStatus;
+                project.updated = previousUpdated;
+              });
             }
           });
         });
@@ -483,7 +500,7 @@
               return;
             }
             const now = nowIsoLocal();
-            state.projects.push({
+            const project = {
               id: newId("proj"),
               title,
               path: info.path,
@@ -492,7 +509,8 @@
               progress: "",
               created: now,
               updated: now,
-            });
+            };
+            state.projects.push(project);
             try {
               await persist();
               projectFormOpen = false;
@@ -500,8 +518,9 @@
               await annotatePaths();
               render();
             } catch (err) {
-              state.projects.pop();
-              alert(err.message || String(err));
+              await recoverFailedSave(err, () => {
+                state.projects = state.projects.filter((p) => p.id !== project.id);
+              });
             }
           });
         }

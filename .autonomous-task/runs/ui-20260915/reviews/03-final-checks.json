@@ -1,0 +1,25 @@
+{
+  "candidate": {
+    "app/index.html": {
+      "sha256": "db66627620919e951667a4642af788e261b6fc578482b95d396c7c9731c15f81",
+      "matches_manifest": true
+    },
+    "app/styles.css": {
+      "sha256": "0307d003b528d2eddc569d04d528e5b2c81fecbb8a4936677432d528fb0ba6b8",
+      "matches_manifest": true
+    },
+    "app/todos.html": {
+      "sha256": "40b911ddbd919aef0a21b6a1984a96cd72196df4bc69c9622a0e42ea9c0c2460",
+      "matches_manifest": true
+    },
+    "app/app.js": {
+      "sha256": "b0f4e1aff9b4e2dd1c9e3a78a6f8ba349a69e68e0e6d463e1402f7444c01b8db",
+      "matches_manifest": true
+    }
+  },
+  "preserved": {
+    "data/todos.json": true,
+    "serve.py": true,
+    "project_progress.py": true
+  }
+}

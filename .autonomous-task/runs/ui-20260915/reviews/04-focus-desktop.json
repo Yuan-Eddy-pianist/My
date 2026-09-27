@@ -1,0 +1,14 @@
+{
+  "accent": "#315b46",
+  "center": [
+    720,
+    450
+  ],
+  "height": 900,
+  "heroBackground": "rgba(0, 0, 0, 0)",
+  "heroBorder": "rgba(0, 0, 0, 0)",
+  "mode": "专注",
+  "scrollWidth": 1440,
+  "voice": "随时说一句，记下想做的事",
+  "width": 1440
+}

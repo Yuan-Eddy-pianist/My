@@ -1,0 +1,36 @@
+Browser tab: 1196902758, Title: "My · 工作台", URL: "http://127.0.0.1:8875/app/todos.html".
+1 AXWebArea My · 工作台, URL: 127.0.0.1:8875/app/todos.html
+	2 link Description: 跳到主要内容, Value: 127.0.0.1:8875/app/todos.html#main
+	3 container
+		4 link Description: My 首页, Value: 127.0.0.1:8875/app/index.html
+		5 container 主导航
+			6 link Description: 专注, Value: 127.0.0.1:8875/app/index.html
+			7 link Description: 工作台, Value: 127.0.0.1:8875/app/todos.html
+		8 checkbox Description: 专注剩余 35:00，点击开始, Help: 开始专注计时 · 切换页面后继续计时, Value: 0, ID: clockBadge
+		9 checkbox Description: 开始语音记录, Value: 0, ID: micBtn
+	18 text 已整理到工作台
+	11 container main
+		12 text 一件一件，慢慢完成
+		13 heading 工作台, Value: 1
+			14 text 工作台
+		19 text 0 项待办 · 0 个提醒 · 按自己的节奏，推进每一天
+		16 button 刷新, ID: refreshBtn
+		17 container lists
+			20 container 短期待办 0
+				21 heading 短期待办 0, Value: 2, ID: tasksHeading
+					22 text 短期待办 0
+				23 text 眼前的事，都完成了
+				24 text 有新的想法？点击麦克风记下来。
+			25 container 提醒 0
+				26 heading 提醒 0, Value: 2, ID: remindersHeading
+					27 text 提醒 0
+				28 text 暂时没有提醒
+				29 text 需要记住的日期，用语音告诉我。
+			30 container 长期项目 0
+				31 heading 长期项目 0, Value: 2, ID: projectsHeading
+					32 text 长期项目 0
+				33 button (collapsed) + 添加项目, ID: toggleProjectForm, Secondary Actions: Expand
+				34 text 给长期目标留个位置
+				35 text 添加一个项目，连接本机目录，记录每一步进展。
+
+The focused UI element is 16 button 刷新, ID: refreshBtn

@@ -1,0 +1,2 @@
+Both inline modules parse. Data byte-identical to fresh round04 baseline. Timer/voice app.js unchanged.
+No remaining workspaceSummary references or mode-specific CSS. Voice hint retained on both pages and runtime. index.html and app.js byte-identical to round04-before.

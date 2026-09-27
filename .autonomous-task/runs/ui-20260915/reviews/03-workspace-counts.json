@@ -1,0 +1,31 @@
+{
+  "completedButtons": [
+    {
+      "id": "#toggleDoneTasks",
+      "text": "已完成 12"
+    },
+    {
+      "id": "#toggleDoneReminders",
+      "text": "已完成 2"
+    },
+    {
+      "id": "#toggleDoneProjects",
+      "text": "已完成 1"
+    }
+  ],
+  "emptyLabels": [
+    "暂无待办"
+  ],
+  "eyebrows": 0,
+  "hasStaticPleasantry": false,
+  "headings": [
+    "短期待办 0",
+    "提醒 2",
+    "长期项目 3"
+  ],
+  "height": 900,
+  "scrollWidth": 1440,
+  "url": "http://127.0.0.1:8765/app/todos.html",
+  "voice": "随时说一句，记下想做的事",
+  "width": 1440
+}

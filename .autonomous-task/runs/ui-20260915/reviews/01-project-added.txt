@@ -1,0 +1,44 @@
+Browser tab: 1196902758, Title: "My · 工作台", URL: "http://127.0.0.1:8875/app/todos.html".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 47-48, 51-54, 56-81
+~			40 container 长期项目 3
+~				41 heading 长期项目 3, Value: 2, ID: projectsHeading
+~					42 text 长期项目 3
+~				44 button (collapsed) + 添加项目, ID: toggleProjectForm, Secondary Actions: Expand
+~				45 container
+~					46 text 长期项目
++					47 heading 个人作品集, Value: 3
++						48 text 个人作品集
+~					49 pop up button (collapsed, settable) Description: 个人作品集的状态, Value: 进行中, Secondary Actions: Expand
+~						50 menu
++							51 (selected) 进行中
++							52 暂停
++							53 完成
++					54 text 整理近期作品，让每一次尝试都有迹可循。 2026-09-15：继续打磨作品介绍，挑选三件最能代表自己的作品。
+~					55 button (collapsed) 项目详情与进展, Secondary Actions: Expand
++						56 text 项目详情与进展
++				57 container
++					58 text 长期项目
++					59 heading 独立审查测试项目, Value: 3
++						60 text 独立审查测试项目
++					61 pop up button (collapsed, settable) Description: 独立审查测试项目的状态, Value: 进行中, Secondary Actions: Expand
++						62 menu
++							63 (selected) 进行中
++							64 暂停
++							65 完成
++					66 text 仅用于可恢复的隔离样本测试 还没有进度记录，用语音记下第一步。
++					67 button (collapsed) 项目详情与进展, Secondary Actions: Expand
++						68 text 项目详情与进展
++				69 container
++					70 text 长期项目
++					71 heading 阅读与写作, Value: 3
++						72 text 阅读与写作
++					73 pop up button (collapsed, settable) Description: 阅读与写作的状态, Value: 暂停, Secondary Actions: Expand
++						74 menu
++							75 进行中
++							76 (selected) 暂停
++							77 完成
++					78 text 每周读完一本书，留下自己的思考。 2026-09-15：读完第一章，整理了三个值得继续思考的问题。
++					79 button (collapsed) 项目详情与进展, Secondary Actions: Expand
++						80 text 项目详情与进展
+The focused UI element is 1 AXWebArea My · 工作台, URL: 127.0.0.1:8875/app/todos.html

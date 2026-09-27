@@ -1,0 +1,7 @@
+Computed sRGB contrast ratios for key text colors (source analysis):
+Muted text #657268 on background #f6f5f0: 4.62:1
+Muted text on panel #fffefa: 5.00:1
+Inactive navigation #657268 on #eaece5: 4.24:1 (consider darkening in next revision)
+Primary button #fff on #315b46: 7.73:1
+Overdue #ae3e37 on #faeee9: 5.21:1
+Today #925310 on #f7f0df: 5.33:1

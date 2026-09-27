@@ -1,0 +1,9 @@
+Browser tab: 1196902758, Title: "My · 工作台", URL: "http://127.0.0.1:8875/app/todos.html".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~					58 button (expanded) 项目详情与进展, Secondary Actions: Collapse
++					72 text 目录不可用
++					73 text /Users/eddy/Desktop/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/a-very-long-project-directory-without-shortcuts/notes
++					74 text 最近 7 天
++					75 text 2026-09-14：完成前期的结构规划。
+2026-09-15：继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。继续打磨作品介绍，收集反馈并记录下一步行动。
+The focused UI element is 58 button (expanded) 项目详情与进展, Secondary Actions: Collapse

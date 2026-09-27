@@ -1,0 +1,81 @@
+{
+  "projects": [
+    {
+      "id": "project-a",
+      "title": "个人作品集",
+      "path": "/Users/eddy/Desktop/My",
+      "goal": "整理近期作品，让每一次尝试都有迹可循。",
+      "status": "active",
+      "progress": "2026-09-14：完成作品分类和首页草稿。\n2026-09-15：继续打磨作品介绍，挑选三件最能代表自己的作品。"
+    },
+    {
+      "id": "project-b",
+      "title": "阅读与写作",
+      "path": "/Users/eddy/Desktop/My/app",
+      "goal": "每周读完一本书，留下自己的思考。",
+      "status": "paused",
+      "progress": "2026-09-15：读完第一章，整理了三个值得继续思考的问题。"
+    },
+    {
+      "id": "project-done",
+      "title": "夏日照片整理",
+      "path": "/Users/eddy/Desktop/My",
+      "status": "done",
+      "goal": "给夏天留下一份记录。",
+      "progress": ""
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-a",
+      "title": "整理本周的工作笔记",
+      "due": "2026-09-15",
+      "status": "open",
+      "notes": "把零散的想法，整理成下一步行动。"
+    },
+    {
+      "id": "task-b",
+      "title": "回复作品集的修改建议",
+      "due": "2026-09-14",
+      "status": "open",
+      "notes": ""
+    },
+    {
+      "id": "task-c",
+      "title": "读完正在看的那一章",
+      "due": null,
+      "status": "open",
+      "notes": ""
+    },
+    {
+      "id": "task-done",
+      "title": "收拾书桌",
+      "due": "2026-09-15",
+      "status": "done",
+      "notes": ""
+    }
+  ],
+  "reminders": [
+    {
+      "id": "reminder-a",
+      "title": "和朋友见面喝咖啡",
+      "due": "2026-09-17",
+      "status": "open",
+      "notes": "下午三点，老地方。"
+    },
+    {
+      "id": "reminder-b",
+      "title": "预约下周的课程",
+      "due": "2026-09-15",
+      "status": "open",
+      "notes": ""
+    },
+    {
+      "id": "reminder-done",
+      "title": "取回借出的书",
+      "due": "2026-09-15",
+      "status": "done",
+      "notes": ""
+    }
+  ]
+}

@@ -67,7 +67,9 @@ app/index.html 录音（番茄钟+麦克风页面）
 
 | 文件 | 作用 |
 |---|---|
-| `serve.py` | 服务器：语音/Whisper/队列/agent 调用/每日巡检。提示词在 `AGENT_PROMPT`、`PROGRESS_PROMPT` |
+| `serve.py` | 服务器：语音/Whisper/队列/inbox agent 调用/每日巡检调度与保存 |
+| `project_progress.py` | 按 Git 提交检查点选择新改动、抵消同批次回退、去除重复进度 |
+| `my-agent/src/summarize.ts` | 对给定的新提交生成中文摘要；没有文件或 Shell 工具 |
 | `my-agent/` | pi 框架 agent（TS）。`src/llm/index.ts` 模型配置、`src/agent.ts` 装配、`src/tools/` 工具 |
 | `my-agent/.env` | `AGENT_LLM_*`：当前指向本地 8800；切回服务器 DeepSeek 改 3 行即可 |
 | `app/app.js` | 前端逻辑（setupVoice / setupPomodoro / 轮询） |

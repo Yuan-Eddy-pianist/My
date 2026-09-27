@@ -1,0 +1,71 @@
+Browser tab: 1196902758, Title: "My · 工作台", URL: "http://127.0.0.1:8875/app/todos.html".
+1 AXWebArea My · 工作台, URL: 127.0.0.1:8875/app/todos.html
+	2 link Description: 跳到主要内容, Value: 127.0.0.1:8875/app/todos.html#main
+	3 container
+		4 link Description: My 首页, Value: 127.0.0.1:8875/app/index.html
+		5 container 主导航
+			6 link Description: 专注, Value: 127.0.0.1:8875/app/index.html
+			7 link Description: 工作台, Value: 127.0.0.1:8875/app/todos.html
+		8 checkbox Description: 专注剩余 35:00，点击开始, Help: 开始专注计时 · 切换页面后继续计时, Value: 0, ID: clockBadge
+		9 checkbox Description: 开始语音记录, Value: 0, ID: micBtn
+	10 text 随时说一句，记下想做的事
+	11 container main
+		12 text 一件一件，慢慢完成
+		13 heading 工作台, Value: 1
+			14 text 工作台
+		18 text 3 项待办 · 2 个提醒 · 3 项今天需要留意
+		16 button 刷新, ID: refreshBtn
+		17 container lists
+			19 container 短期待办 3
+				20 heading 短期待办 3, Value: 2, ID: tasksHeading
+					21 text 短期待办 3
+				22 container
+					23 checkbox (settable, integer) Description: 回复作品集的修改建议, Value: 0, ID: task-task-b
+					24 text 已逾期 · 2026-09-14
+				25 container
+					26 checkbox (settable, integer) Description: 整理本周的工作笔记, Value: 0, ID: task-task-a
+					27 text 今日截止 · 2026-09-15 把零散的想法，整理成下一步行动。
+				28 container
+					29 checkbox (settable, integer) Description: 读完正在看的那一章, Value: 0, ID: task-task-c
+					30 text 无截止日期
+			31 container 提醒 2
+				32 heading 提醒 2, Value: 2, ID: remindersHeading
+					33 text 提醒
+				34 button (collapsed) 已完成 1, ID: toggleDoneReminders, Secondary Actions: Expand
+				35 container
+					36 checkbox (settable, integer) Description: 预约下周的课程, Value: 0, ID: reminder-reminder-b
+					37 text 今日截止 · 2026-09-15
+				38 container
+					39 checkbox (settable, integer) Description: 和朋友见面喝咖啡, Value: 0, ID: reminder-reminder-a
+					40 text 截止 2026-09-17 下午三点，老地方。
+			41 container 长期项目 2
+				42 heading 长期项目 2, Value: 2, ID: projectsHeading
+					43 text 长期项目
+				44 button (collapsed) 已完成 1, ID: toggleDoneProjects, Secondary Actions: Expand
+				45 button (collapsed) + 添加项目, ID: toggleProjectForm, Secondary Actions: Expand
+				46 container
+					47 text 长期项目
+					48 heading 个人作品集, Value: 3
+						49 text 个人作品集
+					50 pop up button (collapsed, settable) Description: 个人作品集的状态, Value: 进行中, Secondary Actions: Expand
+						51 menu
+							52 (selected) 进行中
+							53 暂停
+							54 完成
+					55 text 整理近期作品，让每一次尝试都有迹可循。 2026-09-15：继续打磨作品介绍，挑选三件最能代表自己的作品。
+					56 button (collapsed) 项目详情与进展, Secondary Actions: Expand
+						57 text 项目详情与进展
+				58 container
+					59 text 长期项目
+					60 heading 阅读与写作, Value: 3
+						61 text 阅读与写作
+					62 pop up button (collapsed, settable) Description: 阅读与写作的状态, Value: 暂停, Secondary Actions: Expand
+						63 menu
+							64 进行中
+							65 (selected) 暂停
+							66 完成
+					67 text 每周读完一本书，留下自己的思考。 2026-09-15：读完第一章，整理了三个值得继续思考的问题。
+					68 button (collapsed) 项目详情与进展, Secondary Actions: Expand
+						69 text 项目详情与进展
+
+The focused UI element is 23 checkbox (settable, integer) Description: 回复作品集的修改建议, Value: 0, ID: task-task-b
