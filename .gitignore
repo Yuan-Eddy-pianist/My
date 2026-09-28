@@ -15,3 +15,4 @@ __pycache__/
 .cursor/skill-review/
 data/serve.log
 models/
+/agent-workflow/.runtime/worktrees/.treehouse
