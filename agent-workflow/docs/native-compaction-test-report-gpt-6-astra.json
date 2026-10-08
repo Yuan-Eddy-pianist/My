@@ -1,0 +1,46 @@
+{
+  "package": "@ogulcancelik/pi-codex-compaction@0.1.5",
+  "model": "openai-codex/gpt-6-astra",
+  "checks": [
+    {
+      "name": "started",
+      "autoCompaction": true
+    },
+    {
+      "name": "fixture-read"
+    },
+    {
+      "name": "native-checkpoint",
+      "modelKey": "openai-codex:openai-codex-responses:gpt-6-astra",
+      "types": [
+        null,
+        "compaction"
+      ],
+      "encrypted": true
+    },
+    {
+      "name": "recall-after-compaction",
+      "fields": 6
+    },
+    {
+      "name": "native-checkpoint",
+      "modelKey": "openai-codex:openai-codex-responses:gpt-6-astra",
+      "types": [
+        null,
+        null,
+        "compaction"
+      ],
+      "encrypted": true
+    },
+    {
+      "name": "started",
+      "autoCompaction": true
+    },
+    {
+      "name": "recall-after-repeated-compaction-and-restart",
+      "fields": 6
+    }
+  ],
+  "sessionFile": "/Users/eddy/Documents/Codex/2026-09-27/hey/work/compaction/test-sessions/2026-09-28T03-56-16-945Z_01a0e628-02b0-726d-835e-e79bea176959.jsonl",
+  "passed": true
+}

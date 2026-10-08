@@ -1,0 +1,16 @@
+{
+  "checks": [
+    {
+      "name": "automatic-mid-run-compaction-with-firstmate-hook",
+      "checkpoints": 1,
+      "releaseRecalled": true
+    },
+    {
+      "name": "fresh-firstmate-digest-delivered-after-compaction",
+      "releaseRecalled": true,
+      "newDigestRecalled": true,
+      "approvalRecalled": true
+    }
+  ],
+  "passed": true
+}
