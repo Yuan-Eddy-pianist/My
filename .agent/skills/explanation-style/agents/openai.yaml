@@ -1,0 +1,4 @@
+interface:
+  display_name: "Explanation Style"
+  short_description: "Explain using Eddy's selected source samples"
+  default_prompt: "Use $explanation-style to explain this concept with the source samples I selected."

@@ -4,7 +4,7 @@
 
 ## Open it
 
-Double-click **../Start.command** in this folder. It opens WezTerm and attaches to your saved `firstmate` workspace. From a terminal, you can also run `~/.local/bin/firstmate`.
+Run `firstmate` from any folder to open Firstmate in WezTerm. Use `firstmate --status` to check the primary session without starting it or opening a window. If the command is not on PATH, use `~/.local/bin/firstmate`. Herdr displays the workspace inside WezTerm.
 
 WezTerm's first launch was approved through macOS Privacy & Security. If that warning appears again after an update, review the app there and use the app-specific **Open Anyway** option when you choose to trust that installation. [Apple explains this approval](https://support.apple.com/en-gb/102445).
 
@@ -36,7 +36,7 @@ The setup uses the real [Firstmate distribution](https://github.com/kunchenguid/
 - **GNHF:** an optional iteration runner, configured to use Pi with your Codex provider. Ask for a concrete objective and an iteration or token limit before starting it.
 - **Official Codex CLI:** an alternative standalone agent; it is separate from Pi.
 
-Pi is using `openai-codex/gpt-6-sol` with high reasoning for the main session and default worker dispatch. This provider successfully answered a test request through subscription authentication. A separate API key was not configured. Your desktop app remains available alongside this terminal workflow.
+New Firstmate sessions default to `openai-codex/gpt-6-astra`; newly dispatched workers default to `openai-codex/gpt-6.1-sol`. Both keep high reasoning. You can override a worker for a particular task by telling Firstmate the model to use. Resumed conversations preserve their selected model; see the model defaults section in ../README.md. This provider successfully answered a test request through subscription authentication. A separate API key was not configured. Your desktop app remains available alongside this terminal workflow.
 
 Pi's web-access extension is installed. The Codex fast-mode extension is installed but off by default; its supported model list is narrower than Pi's model catalog. Firstmate's Calm display and supervision extensions are loaded from its own checkout. Older compaction customizations were not copied into the current setup.
 
@@ -44,7 +44,7 @@ Pi's web-access extension is installed. The Codex fast-mode extension is install
 
 Use the mouse to select Herdr workspaces, tabs, and agent panes. Start with that rather than memorizing shortcuts.
 
-- **Return after closing the window:** open ../Start.command again. Closing a terminal window detaches; it does not stop the agents.
+- **Return after closing the window:** run `firstmate` again. Closing a terminal window detaches; it does not stop the agents.
 - **Detach deliberately:** press Ctrl+B, release, then Q.
 - **Herdr shortcuts:** Ctrl+B, release, then ?.
 - **Interrupt Pi's current response:** Escape.
@@ -54,7 +54,7 @@ Use the mouse to select Herdr workspaces, tabs, and agent panes. Start with that
 - **Recover a conversation:** if you are at a shell prompt in the Firstmate directory, run `pi -a --continue`. If choosing among conversations, use `pi -a --resume`.
 - **Ask Firstmate to stop work:** state that explicitly. Closing WezTerm does not cancel a task.
 
-The launcher reattaches to the named workspace. If the saved session has been deliberately deleted, it creates an empty workspace; start Pi there with `pi -a --continue`. The `-a` flag authorizes the trusted checkout's project extensions for that launch.
+The launcher reattaches to the primary conversation using its session identity. If only its shell remains, it resumes Pi there; if the server has no panes, it creates the workspace and resumes Pi automatically. Worker panes in the same folder do not count as primary sessions. The `-a` flag authorizes the trusted checkout's project extensions for that launch.
 
 ## Visual review
 

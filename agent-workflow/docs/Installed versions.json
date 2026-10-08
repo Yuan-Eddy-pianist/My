@@ -17,7 +17,9 @@
     "gh": "2.101.0",
     "pi-web-access": "0.32.0",
     "pi-extension-codex-fast-mode": "0.2.7",
-    "@openai/codex": "0.157.1"
+    "@openai/codex": "0.157.1",
+    "@ogulcancelik/pi-codex-compaction": "0.1.5"
   },
-  "firstmate_commit": "5a9880b42f2556ac63b8371455241c0262ad8ffc"
+  "firstmate_commit": "5a9880b42f2556ac63b8371455241c0262ad8ffc",
+  "native_compaction_verified_on": "2026-09-28"
 }

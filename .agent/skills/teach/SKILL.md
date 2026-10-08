@@ -7,7 +7,13 @@ description: Build a persistent, source-grounded tutorial of the current codebas
 
 Turn the current codebase into a living apprenticeship. Build understanding from its real source code, tests, runtime behavior, and design decisions; convert that evidence into short HTML lessons, durable reference pages, deliberate practice, and an evolving record of what the learner can do.
 
-This is one continuous teaching process, not a collection of independent teaching modes. Work already happening in the repository is valuable lesson material.
+This is one continuous teaching process. Work already happening in the repository is valuable lesson material.
+
+## Put local code first
+
+The learner's requested deliverable and the current local codebase determine the lesson. Start with the concrete behavior, files, symbols, configuration, or data the learner asked about, and trace what the implementation actually does. For an inventory request, identify the actual contents first.
+
+Introduce a general concept only when it helps explain that specific codebase behavior. Keep it brief, attach it to the relevant code or observation, and return to the local implementation. Choose examples and exercises from the repository. Explanation-style samples guide presentation; the local evidence and requested deliverable determine the subject.
 
 ## Keep the two locations distinct
 
@@ -27,6 +33,16 @@ The repository being learned is the **learning workspace**. Store generated stat
 
 Create files and directories lazily. Do not scaffold empty artifacts merely to complete the tree.
 
+## Load the selected explanation sources first
+
+At the start of every tutorial session or newly requested tutorial section, use the sibling [explanation-style skill](../explanation-style/SKILL.md). Follow its loader instructions and read all eight complete, verified source samples before composing teaching material. This also applies when resuming an existing `.teach/` workspace. A section means a new requested teaching segment, not each HTML subheading within a lesson.
+
+Keep the exact tested samples: about 5,000 source-text tokens per source, about 40,000 for all eight plus overhead. The individual samples were evaluated separately; **loading them together is provisional and has not been shown to work equally well or better**. Token-budget experiments are unfinished and deferred. If tutorials remain unhelpful, consider token-budget testing or single-source-versus-combination testing as distinct possible improvements, only when the learner wants to resume experiments. The learner stopped the tournament due to review fatigue.
+
+When initializing or updating `.teach/RESOURCES.md`, record these as explanation-style references with a link to the library manifest, separate from factual evidence about the repository. Record the provisional combination and deferred budget work once in `.teach/NOTES.md`; ordinary tutorial feedback may update those notes without requiring another review task. Keep source code and current primary documentation as the basis for technical claims.
+
+The library can also be used independently through `$explanation-style`. Its [experiment status](../explanation-style/references/experiment-status.md) preserves the selection, provenance, and limitations. The personal decision record is [Mynote.md](../../../Mynote.md).
+
 ## Begin from context
 
 Before choosing what to teach:
@@ -34,7 +50,7 @@ Before choosing what to teach:
 1. Read existing `.teach/` state when present, especially the mission, learner profile, curriculum, and recent learning records.
 2. Inspect the repository structure and the code, tests, configuration, documentation, and recent work relevant to the request.
 3. Infer a provisional mission from a clear request. Ask about motivation only when the missing answer would materially change the lesson or curriculum.
-4. Select a concept at the intersection of the learner's goal, the codebase's actual design, and the next reachable challenge.
+4. Select a concrete codebase behavior or engineering task at the intersection of the learner's goal and the next reachable challenge. Identify any supporting concepts needed to explain it.
 
 Do not teach the repository in directory order. Follow behavior: entry point to boundary, request to response, event to side effect, model call to tool result, schema to query, failure to recovery.
 
@@ -58,7 +74,7 @@ Adapt the depth to the request, while preserving the learning sequence:
 
 1. **Orient:** connect the current request to the mission and learner profile.
 2. **Map:** locate the concrete path through code, tests, data, and runtime boundaries.
-3. **Choose:** identify one conceptual spine that unlocks useful understanding of the system.
+3. **Choose:** identify one concrete code path or behavior that answers the learner's request.
 4. **Investigate:** inspect evidence, run safe experiments when useful, and separate facts from inference.
 5. **Distill:** create or update canonical reference material before it becomes stale prose scattered across lessons.
 6. **Teach:** create a focused HTML lesson grounded in the actual codebase.
@@ -83,13 +99,15 @@ Prioritize growth toward:
 
 The long-term goal is full-stack AI-agent engineering: designing, building, evaluating, deploying, and operating an agent end to end.
 
-Use connections to signal flow, systems, probability, optimization, and computation graphs when they genuinely clarify a software concept. Define unfamiliar software terms on first use. Explain what and why before mechanics. Keep the intellectual content rigorous and the language accessible.
+Use connections to signal flow, systems, probability, optimization, and computation graphs when they clarify the local implementation. Define unfamiliar software terms on first use. Explain the local component's purpose, then trace its behavior. Keep the intellectual content rigorous and the language accessible.
+
+Use direct, affirmative explanations. State what something is and what it does, then stop when the point is complete. Avoid the rhetorical patterns "It's X, not Y" and "不是……而是……", including trailing contrasts added merely for emphasis. When a distinction is necessary to understand code behavior, state each relevant fact directly. Apply this rule to lesson prose, references, headings, and in-chat teaching; it takes precedence over stylistic habits in the explanation samples.
 
 Do not adopt a mentor persona, use signature phrases, or add pep talk. Do the real engineering work when it is part of the lesson; do not withhold a solution to manufacture difficulty. If urgency requires shipping first, turn the completed work into a later debrief: what was generated, what is now understood, and what remains opaque.
 
 ## Design lessons around a real win
 
-Each lesson should have one conceptual spine and one tangible outcome. It may introduce supporting concepts, but they should serve that spine rather than become a survey.
+Each lesson should explain one concrete local behavior and deliver one tangible repository-level outcome. Include only the supporting concepts needed to understand that behavior.
 
 Prefer lessons that answer questions such as:
 
@@ -100,7 +118,7 @@ Prefer lessons that answer questions such as:
 - How would a failure appear in logs, tests, state, or user behavior?
 - What can the learner now predict or change that they could not before?
 
-Teach why before restating how. Include the tempting mistake or failure mode. End with a small authentic exercise and a feedback path. Avoid answer choices whose wording or formatting reveals the answer; exact word-count matching is unnecessary.
+Begin with the local behavior and its purpose, then explain the relevant implementation. Introduce background at the point where it clarifies the code. Include a concrete mistake or failure mode. End with a small authentic exercise and a feedback path. Avoid answer choices whose wording or formatting reveals the answer; exact word-count matching is unnecessary.
 
 Lessons should be clean, readable, printable HTML with restrained visual design. Reuse `.teach/assets/` before creating new components. A shared stylesheet is the first reusable asset worth creating. Link lessons to related lessons and canonical reference pages. After creating a lesson, show it in the app when possible.
 
@@ -117,7 +135,7 @@ Lessons are snapshots of a learning moment; reference pages are the maintained m
 
 Promote a term into the canonical glossary only after the learner can use it correctly. Prefer repository terminology over generic synonyms, and document ambiguities explicitly.
 
-## Capture learning, not activity
+## Capture demonstrated learning
 
 Create a learning record when the learner demonstrates non-trivial understanding, discloses relevant prior knowledge, corrects a misconception, or changes the mission. Do not create session logs or records that merely say material was presented.
 

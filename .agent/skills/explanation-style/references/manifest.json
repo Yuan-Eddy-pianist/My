@@ -1,0 +1,116 @@
+{
+  "version": "eddy-explanation-style-v1",
+  "selected_after_round": 6,
+  "comparisons": 80,
+  "source_pool": 41,
+  "generation_settings": {
+    "model": "gpt-6.1-sol",
+    "effort": "medium",
+    "profile": "I can read simple code and have built small applications. I am unfamiliar with much professional software terminology. I want to understand what happens and why, so I can reason about my own project.",
+    "protocol": 2,
+    "word_limit": null
+  },
+  "per_source_token_target": 5000,
+  "combined_source_tokens_proxy": 40000,
+  "tokenizer_proxy": "o200k_base",
+  "combination_tested": false,
+  "token_budget_experiment": "unfinished; deferred by user",
+  "sources": [
+    {
+      "id": "google-swe",
+      "title": "Software Engineering at Google",
+      "file": "references/sources/google-swe.json",
+      "file_sha256": "7c6bb754a2aad71b7a236b914d5ab9828d1804e1346df7ea507b76fb73cbcb10",
+      "sample_sha256": "ee0722a54b6dbe7313b9aff91b883fe0702f3423f92f121a24091180bd7e8876",
+      "sample_tokens_proxy": 5000,
+      "example_count": 4,
+      "page_url": "https://abseil.io/resources/swe-book/html/ch03.html",
+      "license": "CC BY-NC-ND 4.0",
+      "license_url": "https://abseil.io/resources/swe-book"
+    },
+    {
+      "id": "fullstack-open",
+      "title": "Full Stack Open",
+      "file": "references/sources/fullstack-open.json",
+      "file_sha256": "af73e6f7c0d1dcf9540f9b83244f499f5b55e7048fc466bf1e5b44581a5cec9a",
+      "sample_sha256": "eeb1e09de3e9f46e6a6ae8cdc0d943338dceea1a979881d31f1f2d75cf1f292a",
+      "sample_tokens_proxy": 5000,
+      "example_count": 4,
+      "page_url": "https://fullstackopen.com/en/part1/component_state_event_handlers",
+      "license": "CC BY-NC-SA 3.0",
+      "license_url": "https://fullstackopen.com/en/about/"
+    },
+    {
+      "id": "cs50-sql",
+      "title": "CS50’s Introduction to Databases with SQL",
+      "file": "references/sources/cs50-sql.json",
+      "file_sha256": "f842b01fe7cf2dffe1c842b935ef6c7b9d311c16c1267e9982f39aa062ec8a61",
+      "sample_sha256": "8c423ddd4cd1a9ffc226e8abbdf901cfa4fdcecacf8df635896167cfc7ae2dec",
+      "sample_tokens_proxy": 5000,
+      "example_count": 4,
+      "page_url": "https://cs50.harvard.edu/sql/2024/weeks/3/",
+      "license": "CC BY-NC-SA 4.0",
+      "license_url": "https://cs50.harvard.edu/sql/2024/license/"
+    },
+    {
+      "id": "think-stats",
+      "title": "Think Stats, 2nd edition",
+      "file": "references/sources/think-stats.json",
+      "file_sha256": "f089dc2234cd0669d0d12020201ee14fca5720a73fe8e79c34fba4b46342ffb1",
+      "sample_sha256": "cb3bb0d669d323678238122ec024a7061d7b9019eaa331138d62b2ba511cd0ef",
+      "sample_tokens_proxy": 5000,
+      "example_count": 4,
+      "page_url": "https://greenteapress.com/thinkstats2/html/index.html",
+      "license": "CC BY-NC-SA 3.0",
+      "license_url": "https://greenteapress.com/thinkstats2/html/index.html"
+    },
+    {
+      "id": "cs50-web",
+      "title": "CS50’s Web Programming with Python and JavaScript",
+      "file": "references/sources/cs50-web.json",
+      "file_sha256": "d030567605e30494f45fedbde76cdacc96911b2d0fc101cbfef585d3aa9c8fa1",
+      "sample_sha256": "195f9ee84dd5ec061a4096f60818d7d2da79a19ad7112002035d70d4f7de40b8",
+      "sample_tokens_proxy": 5000,
+      "example_count": 4,
+      "page_url": "https://cs50.harvard.edu/web/2020/weeks/3/",
+      "license": "CC BY-NC-SA 4.0",
+      "license_url": "https://cs50.harvard.edu/web/2020/license/"
+    },
+    {
+      "id": "automate-python",
+      "title": "Automate the Boring Stuff with Python",
+      "file": "references/sources/automate-python.json",
+      "file_sha256": "908ece4809ceaf67bc8ae8647fa748446d80d161d396fced9b8e3b9fcb7680f2",
+      "sample_sha256": "052d645caf858168e9e98e4050e280c0fbe447291a81f04902480931c8d8c90a",
+      "sample_tokens_proxy": 5000,
+      "example_count": 4,
+      "page_url": "https://automatetheboringstuff.com/2e/",
+      "license": "CC BY-NC-SA 3.0",
+      "license_url": "https://automatetheboringstuff.com/2e/"
+    },
+    {
+      "id": "eloquent-js",
+      "title": "Eloquent JavaScript, 4th edition",
+      "file": "references/sources/eloquent-js.json",
+      "file_sha256": "52b566ee1847dd4f76332a8a32e1f2a88db5334d8ada69f394ffc6415b9dc0e1",
+      "sample_sha256": "1bfe12557cbdc88d5e526ecbfde9c995765b7f15e3cfcb06e676b433eb7f87be",
+      "sample_tokens_proxy": 5000,
+      "example_count": 4,
+      "page_url": "https://eloquentjavascript.net/05_higher_order.html",
+      "license": "CC BY-NC 3.0",
+      "license_url": "https://eloquentjavascript.net/"
+    },
+    {
+      "id": "missing-semester",
+      "title": "The Missing Semester of Your CS Education",
+      "file": "references/sources/missing-semester.json",
+      "file_sha256": "28868ada6d3538d1d07ca5afe9868d8c0638940a5cd0ecb6b985edaae37e0b69",
+      "sample_sha256": "58dc0ad04c23f9f455aef6c325420fb9374e03a578cd038d3a4ddb91a5bcf3d4",
+      "sample_tokens_proxy": 5000,
+      "example_count": 4,
+      "page_url": "https://missing.csail.mit.edu/2020/shell-tools/",
+      "license": "CC BY-NC-SA 4.0",
+      "license_url": "https://missing.csail.mit.edu/"
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 Local day-to-day workspace: tomato clock, **工作台** (long-term projects, short-term todos, reminders), and **voice-only** capture.
 
+The live setup now keeps personal projects, to-dos and reminders in Firstmate’s automatically loaded context. The dashboard, voice flow and Firstmate share protected edits to that source; the old dashboard JSON is inactive after migration. See [ownership, setup and migration details](agent-workflow/docs/Dashboard%20connection.md). The server requires the Firstmate context binding; missing or invalid context fails closed instead of falling back to the legacy JSON.
+
 ## Run
 
 ```bash
@@ -124,7 +126,7 @@ On Apple Silicon, ASR uses **MLX Whisper medium** (`mlx-community/whisper-medium
 
 For **Pi terminal voice input** (editable chat draft, not an inbox note), see [`pi_voice/README.md`](pi_voice/README.md). Use `/voice` or `Ctrl+Shift+V` to start and stop; review the transcript before sending.
 
-Then the Cursor Agent updates the workspace (projects / short-term todos / reminders).
+Then `my-agent` prepares a temporary proposal. The server validates and commits it to Firstmate’s personal context (projects / short-term to-dos / reminders).
 
 ## 工作台
 
@@ -142,17 +144,17 @@ Add projects in the UI with a name + absolute path (e.g. `/Users/eddy/Documents/
 |--------|------------|
 | Speech → text | Yes (local Whisper) |
 | Text → `data/inbox.md` | Yes |
-| Inbox → workspace JSON | Yes (headless `agent -p`) |
+| Inbox → Firstmate personal context | Yes (`my-agent` proposal + protected commit) |
 | Weekday 9:00 launch | Yes (after `./schedule/install-launchd.sh`) |
 | Inject into the open IDE chat | **No** — not supported by Cursor |
 
-The agent that edits your files is a separate CLI run against this folder, not the Composer thread you’re reading.
+Voice proposals run in a temporary directory; only the server’s shared update path commits them to Firstmate’s durable context.
 
 ## Data
 
 ```
 data/
-  todos.json         # { projects, tasks, reminders }
+  todos.json         # inactive migration residue; not read or written by the server
   inbox.md           # pending notes (cleared after processing)
   inbox-archive.md   # processed raw notes
   .agent-status.json # UI polling status

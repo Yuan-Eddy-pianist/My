@@ -1,14 +1,14 @@
 # `.teach/lessons/*.html` format
 
-A lesson is a short, self-contained HTML document built around one conceptual spine and one tangible codebase capability. Use sequential filenames such as `0001-trace-a-request.html`.
+A lesson is a short, self-contained HTML document built around one concrete local behavior and one tangible codebase capability. Use sequential filenames such as `0001-trace-a-request.html`.
 
 ## Lesson grammar
 
 Use the sections that serve the lesson; preserve their learning sequence rather than forcing empty headings.
 
-1. **Why this matters here** — connect the concept to the mission and current system.
-2. **Mental model** — explain the concept at the learner's level; use an ECE/ML analogy only when it clarifies rather than decorates.
-3. **Trace through the code** — follow concrete files, symbols, data, and control boundaries.
+1. **Local behavior and purpose** — answer the learner's concrete question using the current implementation or observed behavior.
+2. **Trace through the code** — follow concrete files, symbols, configuration, data, and control boundaries.
+3. **Supporting explanation, when needed** — introduce a general concept or ECE/ML analogy only where it clarifies this trace; connect it directly to the local code and return to the behavior.
 4. **Engineering decision** — explain the design choice, constraints, alternatives, and trade-offs.
 5. **Where it breaks** — show the tempting misconception or observable failure mode.
 6. **Predict before running** — require retrieval or a prediction before revealing behavior.
@@ -30,8 +30,9 @@ Use the sections that serve the lesson; preserve their learning sequence rather 
 
 ## Teaching requirements
 
-- Teach why before how.
+- Lead with local codebase behavior and its purpose; introduce background where it helps explain the implementation.
+- Use the direct writing style defined in SKILL.md: affirmative statements with a complete point, free of decorative trailing contrasts.
 - Do not withhold the solution merely to create difficulty. Use prediction before reveal, then make the explanation complete.
-- Keep one conceptual spine. Put required background in concise asides.
+- Keep one concrete local behavior as the lesson's focus. Put necessary background in concise, code-linked asides.
 - Make the exercise difficult enough to require retrieval but small enough for a tight feedback loop.
 - Do not reveal quiz answers through option length, grammar, ordering, or formatting. Exact character counts are unnecessary.

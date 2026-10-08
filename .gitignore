@@ -16,3 +16,5 @@ __pycache__/
 data/serve.log
 models/
 /agent-workflow/.runtime/worktrees/.treehouse
+
+data/.firstmate-context.json

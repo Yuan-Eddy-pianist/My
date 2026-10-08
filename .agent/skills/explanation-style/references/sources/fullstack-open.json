@@ -1,0 +1,171 @@
+{
+  "id": "fullstackopen_eeb1e09d",
+  "name": "Full Stack Open",
+  "examples": [
+    {
+      "question": "Read these passages as examples of how concepts are explained. They are excerpts and can begin or end mid-discussion.",
+      "answer": "3, 5, 3],\n  department: 'Stanford University',\n}\n```\n\nThe values of the properties can be of any type, like integers, strings, arrays, objects...\n\nThe properties of an object are referenced by using the \"dot\" notation, or by using brackets:\n\n```\nconsole.log(object1.name)         // Arto Hellas is printed\nconst fieldName = 'age'\nconsole.log(object1[fieldName])    // 35 is printed\n```\n\nYou can also add properties to an object on the fly by either using dot notation or brackets:\n\n```\nobject1.address = 'Helsinki'\nobject1['secret number'] = 12341\n```\n\nThe latter of the additions has to be done by using brackets because when using dot notation, secret number is not a valid property name because of the space character.\n\nNaturally, objects in JavaScript can also have methods. However, during this course, we do not need to define any objects with methods of their own. This is why they are only discussed briefly during the course.\n\nObjects can also be defined using so-called constructor functions, which results in a mechanism reminiscent of many other programming languages, e.g. Java's classes. Despite this similarity, JavaScript does not have classes in the same sense as object-oriented programming languages. There has been, however, the addition of the class syntax starting from version ES6, which in some cases helps structure object-oriented classes.\n\nFunctions\n\nWe have already become familiar with defining arrow functions. The complete process, without cutting corners, of defining an arrow function is as follows:\n\n```\nconst sum = (p1, p2) => {\n  console.log(p1)\n  console.log(p2)\n  return p1 + p2\n}\n```\n\nand the function is called as can be expected:\n\n```\nconst result = sum(1, 5)\nconsole.log(result)\n```\n\nIf there is just a single parameter, we can exclude the parentheses from the definition:\n\n```\nconst square = p => {\n  console.log(p)\n  return p * p\n}\n```\n\nIf the function only contains a single expression then the braces are not needed. In this case, the function only returns the result of its only expression. Now, if we remove console printing, we can further shorten the function definition:\n\n```\nconst square = p => p * p\n```\n\nThis form is particularly handy when manipulating arrays - e.g. when using the map method:\n\n```\nconst t = [1, 2, 3]\nconst tSquared = t.map(p => p * p)\n// tSquared is now [1, 4, 9]\n```\n\nThe arrow function feature was added to JavaScript in 2015, with version ES6 . Before this, the only way to define functions was by using the keyword function .\n\nThere are two ways to reference the function; one is giving a name in a function declaration .\n\n```\nfunction product(a, b) {\n  return a * b\n}\n\nconst result = product(2, 6)\n// result is now 12\n```\n\nThe other way to define the function is by using a function expression . In this case, there is no need to give the function a name and the definition may reside among the rest of the code:\n\n```\nconst average = function(a, b) {\n  return (a + b) / 2\n}\n\nconst result = average(2, 5)\n// result is now 3.5\n```\n\nDuring this course, we will define all functions using the arrow syntax.\n\nExercises 1.3.-1.5.\n\nWe continue building the application that we started working on in the previous exercises. You can write the code into the same project since we are only interested in the final state of the submitted application.\n\nPro-tip: you may run into issues when it comes to the structure of the props that components receive. A good way to make things more clear is by printing the props to the console, e.g. as follows:\n\n```\nconst Header = (props) => {\n  console.log(props)  return <h1>{props.course}</h1>\n}\n```\n\nIf and when you encounter an error message\n\nObjects are not valid as a React child\n\nkeep in mind the things told here .\n\n1.3: Course Information step 3\n\nLet's move forward to using objects in our application. Modify the variable definitions of the App component as follows and also refactor the application so that it still works:\n\n```\nconst App = () => {\n  const course = 'Half Stack application development'\n  const part1 = {\n    name: 'Fundamentals of React',\n    exercises: 10\n  }\n  const part2 = {\n    name: 'Using props to pass data',\n    exercises: 7\n  }\n  const part3 = {\n    name: 'State of a component',\n    exercises: 14\n  }\n\n  return (\n    <div>\n      ...\n    </div>\n  )\n}\n```\n\n1.4: Course Information step 4\n\nPlace the objects into an array. Modify the variable definitions of App into the following form and modify the other parts of the application accordingly:\n\n```\nconst App = () => {\n  const course = 'Half Stack application development'\n  const parts = [\n    {\n      name: 'Fundamentals of React',\n      exercises: 10\n    },\n    {\n      name: 'Using props to pass data',\n      exercises: 7\n    },\n    {\n      name: 'State of a component',\n      exercises: 14\n    }\n  ]\n\n  return (\n    <div>\n      ...\n    </div>\n  )\n}\n```\n\nNB at this point you can assume that there are always three items , so there is no need to go through the arrays using loops. We will come back to the topic of rendering components based on items in arrays with a more thorough exploration in the next part of the course .\n\nHowever, do not pass different objects as separate props from the App component to the components Content and Total . Instead, pass them directly",
+      "source": "Full Stack Open — University of Helsinki and contributors; https://fullstackopen.com/en/part1/java_script; CC BY-NC-SA 3.0. Extracted original text; formatting normalized, no paraphrase."
+    },
+    {
+      "question": "Read these passages as examples of how concepts are explained. They are excerpts and can begin or end mid-discussion.",
+      "answer": ">\n      <button onClick={() => setToValue(value + 1)}>\n        increment\n      </button>\n    </div>\n  )\n}\n```\n\nWe can now define the event handler as a function that calls the setToValue function with an appropriate parameter. The event handler for resetting the application state would be:\n\n```\n<button onClick={() => setToValue(0)}>reset</button>\n```\n\nChoosing between the two presented ways of defining your event handlers is mostly a matter of taste.\n\nPassing Event Handlers to Child Components\n\nLet's extract the button into its own component:\n\n```\nconst Button = (props) => (\n  <button onClick={props.onClick}>\n    {props.text}\n  </button>\n)\n```\n\nThe component gets the event handler function from the onClick prop, and the text of the button from the text prop. Lets use the new component:\n\n```\nconst App = (props) => {\n  // ...\n  return (\n    <div>\n      {value}\n      <Button onClick={() => setToValue(1000)} text=\"thousand\" />      <Button onClick={() => setToValue(0)} text=\"reset\" />      <Button onClick={() => setToValue(value + 1)} text=\"increment\" />    </div>\n  )\n}\n```\n\nUsing the Button component is simple, although we have to make sure that we use the correct attribute names when passing props to the component.\n\nDo Not Define Components Within Components\n\nLet's start displaying the value of the application in its Display component.\n\nWe will change the application by defining a new component inside of the App component.\n\n```\n// This is the right place to define a component\nconst Button = (props) => (\n  <button onClick={props.onClick}>\n    {props.text}\n  </button>\n)\n\nconst App = () => {\n  const [value, setValue] = useState(10)\n\n  const setToValue = newValue => {\n    console.log('value now', newValue)\n    setValue(newValue)\n  }\n\n  // Do not define components inside another component\n  const Display = props => <div>{props.value}</div>\n  return (\n    <div>\n      <Display value={value} />      <Button onClick={() => setToValue(1000)} text=\"thousand\" />\n      <Button onClick={() => setToValue(0)} text=\"reset\" />\n      <Button onClick={() => setToValue(value + 1)} text=\"increment\" />\n    </div>\n  )\n}\n```\n\nThe application still appears to work, but do not implement components like this! Never define components inside of other components. The method provides no benefits and only leads to problems. One such problem is that React will treat a component defined inside of another component as a \"new component\" in every render. This makes it impossible for React to optimize the component.\n\nLet's instead move the Display component function to its correct place, which is outside of the App component function:\n\n```\nconst Display = props => <div>{props.value}</div>\n\nconst Button = (props) => (\n  <button onClick={props.onClick}>\n    {props.text}\n  </button>\n)\n\nconst App = () => {\n  const [value, setValue] = useState(10)\n\n  const setToValue = newValue => {\n    console.log('value now', newValue)\n    setValue(newValue)\n  }\n\n  return (\n    <div>\n      <Display value={value} />\n      <Button onClick={() => setToValue(1000)} text=\"thousand\" />\n      <Button onClick={() => setToValue(0)} text=\"reset\" />\n      <Button onClick={() => setToValue(value + 1)} text=\"increment\" />\n    </div>\n  )\n}\n```\n\nUseful Reading\n\nThe internet is full of React-related material. However, we use the new style of React for which a large majority of the material found online is outdated.\n\nYou may find the following links useful:\n\nThe official React documentation is worth checking out at some point, although most of it will become relevant only later on in the course. Also, everything related to class-based components is irrelevant to us;\n\nSome courses on Egghead.io like Start learning React are of high quality, and the recently updated Beginner's Guide to React is also relatively good; both courses introduce concepts that will also be introduced later on in this course. NB The first one uses class components but the latter uses the new functional ones.\n\nWeb Programmer's Oath\n\nProgramming is hard. That is why, as a developer, I will use all possible means to make it easier.\n\nI will have my browser's developer console open at all times.\n\nI will progress in small steps, making sure that my code is working at each step.\n\nI will write many console.log statements to make sure I understand how the code behaves and to help pinpointing problems.\n\nIf my code does not work, I will not write more code. Instead, I will either start deleting the code until it works or return to a state where my program was working.\n\nWhen I ask for help in the course Discord channel or elsewhere, I will formulate my questions properly. See this section to learn how to ask for help.\n\nUtilization of Large language models\n\nLarge language models such as ChatGPT , Claude and GitHub Copilot have proven to be very useful in software development.\n\nPersonally, I mainly use GitHub Copilot, which is now natively integrated into Visual Studio Code As a reminder, if you're a university student, you can access Copilot Pro for free through the GitHub Student Developer Pack .\n\nCopilot is useful in a wide variety of scenarios. For example, Copilot can be asked to generate code for an open file by describing the desired functionality in text:\n\nIf the code looks good, Copilot adds it to the file:\n\nIn the case of our example, Copilot only created a button, the event handler handleResetClick is undefined.\n\nAn event handler may also be generated. By writing the first line of the function,",
+      "source": "Full Stack Open — University of Helsinki and contributors; https://fullstackopen.com/en/part1/a_more_complex_state_debugging_react_apps; CC BY-NC-SA 3.0. Extracted original text; formatting normalized, no paraphrase."
+    },
+    {
+      "question": "Read these passages as examples of how concepts are explained. They are excerpts and can begin or end mid-discussion.",
+      "answer": "in small projects.\n\nSearching for content in a component\n\nThe react-testing-library package offers many different ways of investigating the content of the component being tested. In reality, the expect in our test is not needed at all:\n\n```\nimport { render, screen } from '@testing-library/react'\nimport Note from './Note'\n\ntest('renders content', () => {\n  const note = {\n    content: 'Component testing is done with react-testing-library',\n    important: true\n  }\n\n  render(<Note note={note} />)\n\n  const element = screen.getByText('Component testing is done with react-testing-library')\n\n  expect(element).toBeDefined()})\n```\n\nTest fails if getByText does not find the element it is looking for.\n\nThe getByText command, by default, searches for an element that contains only the text provided as a parameter and nothing else. Let us assume that a component would render text to an HTML element as follows:\n\n```\nconst Note = ({ note, toggleImportance }) => {\n  const label = note.important\n    ? 'make not important' : 'make important'\n\n  return (\n    <li className='note'>\n      Your awesome note: {note.content}      <button onClick={toggleImportance}>{label}</button>\n    </li>\n  )\n}\n\nexport default Note\n```\n\nThe getByText method that the test uses does not find the element:\n\n```\ntest('renders content', () => {\n  const note = {\n    content: 'Does not work anymore :(',\n    important: true\n  }\n\n  render(<Note note={note} />)\n\n  const element = screen.getByText('Does not work anymore :(')\n\n  expect(element).toBeDefined()\n})\n```\n\nIf we want to look for an element that contains the text, we could use an extra option:\n\n```\nconst element = screen.getByText(\n  'Does not work anymore :(', { exact: false }\n)\n```\n\nor we could use the findByText method:\n\n```\nconst element = await screen.findByText('Does not work anymore :(')\n```\n\nIt is important to notice that, unlike the other ByText methods, findByText returns a promise!\n\nThere are situations where yet another form of the queryByText method is useful. The method returns the element but it does not cause an exception if it is not found.\n\nWe could eg. use the method to ensure that something is not rendered to the component:\n\n```\ntest('does not render this', () => {\n  const note = {\n    content: 'This is a reminder',\n    important: true\n  }\n\n  render(<Note note={note} />)\n\n  const element = screen.queryByText('do not want this thing to be rendered')\n  expect(element).toBeNull()\n})\n```\n\nOther methods also exist, such as getByTestId , which searches for elements based on id fields specifically created for testing purposes.\n\nWe could also use CSS-selectors to find rendered elements by using the method querySelector of the object container that is one of the fields returned by the render:\n\n```\nimport { render, screen } from '@testing-library/react'\nimport Note from './Note'\n\ntest('renders content', () => {\n  const note = {\n    content: 'Component testing is done with react-testing-library',\n    important: true\n  }\n\n  const { container } = render(<Note note={note} />)\n  const div = container.querySelector('.note')  expect(div).toHaveTextContent(    'Component testing is done with react-testing-library'  )})\n```\n\nIt is, however, recommended to search for elements primarily using methods other than the container object and CSS selectors. CSS attributes can often be changed without affecting the application's functionality, and users are not aware of them. It is better to search for elements based on properties visible to the user, for example, by using the getByText method. This way, the tests better simulate the actual nature of the component and how a user would find the element on the screen.\n\nDebugging tests\n\nWe typically run into many different kinds of problems when writing our tests.\n\nObject screen has method debug that can be used to print the HTML of a component to the terminal. If we change the test as follows:\n\n```\nimport { render, screen } from '@testing-library/react'\nimport Note from './Note'\n\ntest('renders content', () => {\n  const note = {\n    content: 'Component testing is done with react-testing-library',\n    important: true\n  }\n\n  render(<Note note={note} />)\n\n  screen.debug()\n  // ...\n\n})\n```\n\nthe HTML gets printed to the console:\n\n```\nconsole.log\n  <body>\n    <div>\n      <li\n        class=\"note\"\n      >\n        Component testing is done with react-testing-library\n        <button>\n          make not important\n        </button>\n      </li>\n    </div>\n  </body>\n```\n\nIt is also possible to use the same method to print a wanted element to console:\n\n```\nimport { render, screen } from '@testing-library/react'\nimport Note from './Note'\n\ntest('renders content', () => {\n  const note = {\n    content: 'Component testing is done with react-testing-library',\n    important: true\n  }\n\n  render(<Note note={note} />)\n\n  const element = screen.getByText('Component testing is done with react-testing-library')\n\n  screen.debug(element)\n  expect(element).toBeDefined()\n})\n```\n\nNow the HTML of the wanted element gets printed:\n\n```\n<li\n    class=\"note\"\n  >\n    Component testing is done with react-testing-library\n    <button>\n      make not important\n    </button>\n  </li>\n```\n\nClicking buttons in tests\n\nIn addition to displaying content, the Note component also makes sure that when the button associated with the note is pressed, the toggleImportance event handler function gets called.\n\nLet us install a library user-event that makes simulating user input a bit easier:\n\n```\nnpm install --save-dev @testing-library",
+      "source": "Full Stack Open — University of Helsinki and contributors; https://fullstackopen.com/en/part5/testing_react_apps; CC BY-NC-SA 3.0. Extracted original text; formatting normalized, no paraphrase."
+    },
+    {
+      "question": "Read these passages as examples of how concepts are explained. They are excerpts and can begin or end mid-discussion.",
+      "answer": "is called with the argument li , i.e. we search for all li elements on the page, of which there are three in total. After this, using the locator.filter method, we narrow down to the li element that contains the text third note and the button element inside it is taken using the locator.getByRole method.\n\nThe locator generated by Playwright is somewhat different from the locator used by our tests, which was\n\n```\npage.getByText('first note').locator('..').getByRole('button', { name: 'make not important' })\n```\n\nWhich of the locators is better is probably a matter of taste.\n\nPlaywright also includes a test generator that makes it possible to \"record\" a test through the user interface. The test generator is started with the command:\n\n```\nnpx playwright codegen http://localhost:5173/\n```\n\nWhen the Record mode is on, the test generator \"records\" the user's interaction in the Playwright inspector, from where it is possible to copy the locators and actions to the tests:\n\nInstead of the command line, Playwright can also be used via the VS Code plugin. The plugin offers many convenient features, e.g. use of breakpoints when debugging tests.\n\nTo avoid problem situations and increase understanding, it is definitely worth browsing Playwright's high-quality documentation . The most important sections are listed below:\n\nthe section about locators gives good hints for finding elements in test\n\nsection actions tells how it is possible to simulate the interaction with the browser in tests\n\nthe section about assertions demonstrates the different expectations Playwright offers for testing\n\nIn-depth details can be found in the API description, particularly useful are the class Page corresponding to the browser window of the application under test, and the class Locator corresponding to the elements searched for in the tests.\n\nThe final version of the tests is in full on GitHub , in branch part5-3 .\n\nThe final version of the frontend code is in its entirety on GitHub , in branch part5-9 .\n\nExercises 5.17.-5.23.\n\nIn the last exercises of this part, let's do some E2E tests for the blog application. The material above should be enough to do most of the exercises. However, you should definitely read Playwright's documentation and API description , at least the sections mentioned at the end of the previous chapter.\n\n5.17: Blog List End To End Testing, step 1\n\nCreate a new npm project for tests and configure Playwright there.\n\nMake a test to ensure that the application displays the login form by default.\n\nThe body of the test should be as follows:\n\n```\nconst { test, expect, beforeEach, describe } = require('@playwright/test')\n\ndescribe('Blog app', () => {\n  beforeEach(async ({ page }) => {\n    await page.goto('http://localhost:5173')\n  })\n\n  test('Login form is shown', async ({ page }) => {\n    // ...\n  })\n})\n```\n\n5.18: Blog List End To End Testing, step 2\n\nDo the tests for login. Test both successful and failed login. For tests, create a user in the beforeEach block.\n\nThe body of the tests expands as follows\n\n```\nconst { test, expect, beforeEach, describe } = require('@playwright/test')\n\ndescribe('Blog app', () => {\n  beforeEach(async ({ page, request }) => {\n    // empty the db here\n    // create a user for the backend here\n    // ...\n  })\n\n  test('Login form is shown', async ({ page }) => {\n    // ...\n  })\n\n  describe('Login', () => {\n    test('succeeds with correct credentials', async ({ page }) => {\n      // ...\n    })\n\n    test('fails with wrong credentials', async ({ page }) => {\n      // ...\n    })\n  })\n})\n```\n\nThe beforeEach block must empty the database using, for example, the reset method we used in the material .\n\n5.19: Blog List End To End Testing, step 3\n\nCreate a test that verifies that a logged in user can create a blog. The body of the test may look like the following\n\n```\ndescribe('When logged in', () => {\n  beforeEach(async ({ page }) => {\n    // ...\n  })\n\n  test('a new blog can be created', async ({ page }) => {\n    // ...\n  })\n})\n```\n\nThe test should ensure that the created blog is visible in the list of blogs.\n\n5.20: Blog List End To End Testing, step 4\n\nDo a test that makes sure the blog can be liked.\n\n5.21: Blog List End To End Testing, step 5\n\nMake a test that ensures that the user who added the blog can delete the blog. If you use the window.confirm dialog in the delete operation, you may have to Google how to use the dialog in the Playwright tests.\n\n5.22: Blog List End To End Testing, step 6\n\nMake a test that ensures that only the user who added the blog sees the blog's delete button.\n\n5.23: Blog List End To End Testing, step 7\n\nDo a test that ensures that the blogs are arranged in the order according to the likes, the blog with the most likes first.\n\nThis task is significantly more challenging than the previous ones.\n\nPart 5c\n\nPart 5e\n\ne\n\nReact Router, UI frameworks\n\nOur app's user interface is currently quite basic:\n\nWe want to change that. Let's start with the app's navigation structure.\n\nIt is very common for web apps to have a navigation bar that allows users to switch between different views within the app. Our note-taking app could include a home page:\n\nand a separate page for viewing notes:\n\nas well as a page for creating notes:\n\nIn an old-school web application , switching between pages displayed by the application involved the browser sending a new HTTP GET request to the server and then rendering the HTML code returned by the server, which corresponded to the new view.\n\nIn single-page applications, however, you are actually on the same page the entire time, and JavaScript code executed",
+      "source": "Full Stack Open — University of Helsinki and contributors; https://fullstackopen.com/en/part5/end_to_end_testing; https://fullstackopen.com/en/part5/react_router_ui_frameworks; CC BY-NC-SA 3.0. Extracted original text; formatting normalized, no paraphrase."
+    }
+  ],
+  "created_at": "2026-10-04T05:32:01Z",
+  "provenance": {
+    "resource_id": "fullstack-open",
+    "title": "Full Stack Open",
+    "author": "University of Helsinki and contributors",
+    "kind": "course text",
+    "subject": "Software engineering / systems",
+    "page_url": "https://fullstackopen.com/en/part1/component_state_event_handlers",
+    "license": "CC BY-NC-SA 3.0",
+    "license_url": "https://fullstackopen.com/en/about/",
+    "discovery_evidence": [
+      {
+        "url": "https://www.reddit.com/r/learnjavascript/comments/hyq44z",
+        "title": "Newcomer to JavaScript",
+        "signal": "Reddit discussion / recommendation",
+        "observed_text": "ascript/comments/hyq44z)\nciteturn49reddit12 [wordlim: 200] Published: 6.2 years ago; Crawled: 6.2 years ago; https://fullstackopen.com/en/ ... https://javascript.info/\n[Monday July 27 2020] [+2 votes]\nMorning All,\n\nI'm new to coding/programming.\n\nDoes anyone have any good recommendations for sources to learn JavaScript (free or paid)?\n\nThanks in ad",
+        "retrieved_date": "2026-10-04",
+        "access": "Search-index text; source page may require browser access"
+      },
+      {
+        "url": "https://www.reddit.com/r/learnjavascript/comments/1hv5xuo",
+        "title": "Rate my Javascript Full Stack learning path",
+        "signal": "Reddit discussion / recommendation",
+        "observed_text": "1 votes]\nLearn JavaScript from javascript.info and build some small projects to reinforce the topics. Then go all-in on fullstackopen. It is a gem of a course which will give you a good hands-on experience.\nBuilding projects is the key, you will not learn anything by watching videos. When you stumble somewhere and then solve the problem, that is the m",
+        "retrieved_date": "2026-10-04",
+        "access": "Search-index text; source page may require browser access"
+      },
+      {
+        "url": "https://www.reddit.com/r/learnjavascript/comments/1fw3c6y",
+        "title": "I have 2 months to learn Python & JavaScript",
+        "signal": "Reddit discussion / recommendation",
+        "observed_text": "[wordlim: 200] Published: 2.0 years ago; Crawled: 2.0 years ago;   For JavaScript (without react) I would not recommend full stack open to learn the language.Pick up the book (online and free) eloquent JavaScript and rely heavily on JavaScript.info\nI loved the U helsinki courses in general. They have one python too.\nThe difference between Python and JS ",
+        "retrieved_date": "2026-10-04",
+        "access": "Search-index text; source page may require browser access"
+      }
+    ],
+    "catalog_entry_sha256": "7adc1bbbc597fd58e687748aebc0730f13487c6ca9cc9f34b654860e5e2b3dd7",
+    "sampler": "stratified-original-text-v1",
+    "tokenizer": "o200k_base",
+    "tokenizer_note": "Reproducible token-count proxy; actual model input usage also includes instructions and the question.",
+    "target_tokens": 5000,
+    "sample_tokens": 5000,
+    "available_tokens": 58381,
+    "documents": [
+      {
+        "url": "https://fullstackopen.com/en/part1/introduction_to_react",
+        "sha256": "3b6f792b1202db17da70c4aa41ce718a847a38d1cd40a2e66debafecbfaf2de2",
+        "retrieved_at": "2026-10-04T05:29:33Z"
+      },
+      {
+        "url": "https://fullstackopen.com/en/part1/java_script",
+        "sha256": "39c1708a6415f1474e4e25182900eaef92e31008ef31ae0375acb10467a8072a",
+        "retrieved_at": "2026-10-04T05:29:34Z"
+      },
+      {
+        "url": "https://fullstackopen.com/en/part1/component_state_event_handlers",
+        "sha256": "1dca396d5c70f9c9467bd39c43d5a5b4407aa853ac3543a775e57289e130f16e",
+        "retrieved_at": "2026-10-04T05:29:36Z"
+      },
+      {
+        "url": "https://fullstackopen.com/en/part1/a_more_complex_state_debugging_react_apps",
+        "sha256": "d5ffb7907485b05430fd47479326eee259af6010a39b3310e71b12ed38a454a4",
+        "retrieved_at": "2026-10-04T05:29:38Z"
+      },
+      {
+        "url": "https://fullstackopen.com/en/part5/login_in_frontend",
+        "sha256": "84c6ce3e0fcbf8cc167822121e1942662a372647d710ddde73a93f9449560ea7",
+        "retrieved_at": "2026-10-04T05:29:39Z"
+      },
+      {
+        "url": "https://fullstackopen.com/en/part5/props_children_and_component_refs",
+        "sha256": "8154d5985a0c4c045d3f4cbb6e17a66bb466524fc5cc5474b8d61c4d94dda7a1",
+        "retrieved_at": "2026-10-04T05:29:41Z"
+      },
+      {
+        "url": "https://fullstackopen.com/en/part5/testing_react_apps",
+        "sha256": "4c9c8894f463ba833d84862985b6c0a7c1023e49059920a6a616dee1aa52918d",
+        "retrieved_at": "2026-10-04T05:29:43Z"
+      },
+      {
+        "url": "https://fullstackopen.com/en/part5/end_to_end_testing",
+        "sha256": "75ebef293c1df116341366e5cca7a3ddd1c857490c9b502dcb53cf90feb1f25f",
+        "retrieved_at": "2026-10-04T05:29:44Z"
+      },
+      {
+        "url": "https://fullstackopen.com/en/part5/react_router_ui_frameworks",
+        "sha256": "c8c5fdd1753ba65aa4fb868bcac923aa66437086728e66f3758667b252209e9a",
+        "retrieved_at": "2026-10-04T05:29:46Z"
+      }
+    ],
+    "excerpts": [
+      {
+        "location": {
+          "url": "https://fullstackopen.com/en/part1/java_script",
+          "document_token_start": 1675,
+          "document_token_end": 2925,
+          "document_sha256": "39c1708a6415f1474e4e25182900eaef92e31008ef31ae0375acb10467a8072a"
+        },
+        "stratum": 1,
+        "tokens": 1250
+      },
+      {
+        "location": {
+          "url": "https://fullstackopen.com/en/part1/a_more_complex_state_debugging_react_apps",
+          "document_token_start": 6709,
+          "document_token_end": 7959,
+          "document_sha256": "d5ffb7907485b05430fd47479326eee259af6010a39b3310e71b12ed38a454a4"
+        },
+        "stratum": 2,
+        "tokens": 1250
+      },
+      {
+        "location": {
+          "url": "https://fullstackopen.com/en/part5/testing_react_apps",
+          "document_token_start": 1202,
+          "document_token_end": 2452,
+          "document_sha256": "4c9c8894f463ba833d84862985b6c0a7c1023e49059920a6a616dee1aa52918d"
+        },
+        "stratum": 3,
+        "tokens": 1250
+      },
+      {
+        "location": {
+          "url": "https://fullstackopen.com/en/part5/end_to_end_testing",
+          "document_token_start": 10058,
+          "document_token_end": 11156,
+          "document_sha256": "75ebef293c1df116341366e5cca7a3ddd1c857490c9b502dcb53cf90feb1f25f"
+        },
+        "stratum": 4,
+        "tokens": 1098
+      },
+      {
+        "location": {
+          "url": "https://fullstackopen.com/en/part5/react_router_ui_frameworks",
+          "document_token_start": 0,
+          "document_token_end": 152,
+          "document_sha256": "c8c5fdd1753ba65aa4fb868bcac923aa66437086728e66f3758667b252209e9a"
+        },
+        "stratum": 4,
+        "tokens": 152
+      }
+    ],
+    "sample_sha256": "eeb1e09de3e9f46e6a6ae8cdc0d943338dceea1a979881d31f1f2d75cf1f292a",
+    "created_at": "2026-10-04T05:32:01Z"
+  }
+}

@@ -16,11 +16,13 @@ if [ "${1:-}" != --configure-only ]; then
   if ! command -v herdr >/dev/null 2>&1; then sh "$ROOT/installers/herdr-install.sh"; fi
   if ! command -v treehouse >/dev/null 2>&1; then bash "$ROOT/firstmate/bin/fm-install-treehouse.sh" "$HOME/.local/bin"; fi
   if ! command -v no-mistakes >/dev/null 2>&1; then NO_MISTAKES_LINK_DIR="$HOME/.local/bin" sh "$ROOT/installers/no-mistakes-install.sh"; fi
+  pi update --models
   pi install npm:pi-web-access@0.32.0
   pi install npm:@ryan_nookpi/pi-extension-codex-fast-mode@0.2.7
+  pi install npm:@ogulcancelik/pi-codex-compaction@0.1.5
 fi
 python3 "$ROOT/scripts/configure.py"
 codex --version
 pi --version
 echo 'Sign in on this device: pi → /login openai-codex; gh auth login; codex login.'
-echo 'Then open Start.command. Use README.md for Windows/WSL and transfer steps.'
+echo 'Then run firstmate to open WezTerm. Use README.md for Windows/WSL and transfer steps.'
