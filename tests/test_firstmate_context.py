@@ -8,7 +8,7 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import patch
-from types import SimpleNamespace
+from agenda_fixture import reply
 
 import serve
 from firstmate_context import ContextStore,ContextConflict,ContextError,render_context,parse_context
@@ -180,33 +180,85 @@ except ContextConflict: print('conflict')
         self.assertEqual(payload['project_links']['fm:Extra'],'Extra')
         with self.assertRaises(ValueError): self.store.apply([{'op':'delete','collection':'projects','id':'p'}],result['version'],'now')
 
-    def test_voice_proposal_commits_to_context_and_archives_after_success(self):
-        self.migrate(); old=self.legacy_path.read_bytes()
-        def agent(*args,**kwargs):
-            path=Path(kwargs['env']['AGENT_WORKSPACE'])/'data/proposal.json'
-            self.assertNotEqual(path,self.legacy_path)
-            data=json.loads(path.read_text()); data['tasks'][0]['status']='done'; path.write_text(json.dumps(data))
-            return SimpleNamespace(returncode=0,stdout='Saved',stderr='')
-        with patch('serve.subprocess.run',side_effect=agent): serve.run_personal_inbox_agent('note','node')
-        self.assertEqual(self.store.snapshot()['workspace']['tasks'][0]['status'],'done')
-        self.assertEqual(serve.read_status()['state'],'done')
-        self.assertEqual(serve.INBOX.read_text(),serve.INBOX_HEADER)
-        self.assertIn('finish the task',serve.ARCHIVE.read_text())
-        self.assertEqual(self.legacy_path.read_bytes(),old)
+    def voice_outbox(self):
+        source = os.environ.get('MY_AGENDA_TEST_INBOX_ROOT')
+        if not source:
+            self.skipTest('Set MY_AGENDA_TEST_INBOX_ROOT for isolated inbox owner coverage')
+        scripts = self.home / 'bin'
+        scripts.mkdir(exist_ok=True)
+        for name in ('fm-inbox.sh', 'fm-wake-lib.sh', 'fm-path-lib.sh'):
+            (scripts / name).write_bytes((Path(source) / 'bin' / name).read_bytes())
+        return serve.agenda_requests()
 
-    def test_voice_conflict_never_rolls_back_firstmate_and_retains_note(self):
-        self.migrate(); note=serve.INBOX.read_bytes()
-        def agent(*args,**kwargs):
-            path=Path(kwargs['env']['AGENT_WORKSPACE'])/'data/proposal.json'
-            data=json.loads(path.read_text()); data['tasks'][0]['status']='done'; path.write_text(json.dumps(data))
-            current=self.store.snapshot()
-            self.store.apply([{'op':'update','collection':'tasks','id':'t','fields':{'notes':'Concurrent Firstmate change'}}],current['version'],'now')
-            return SimpleNamespace(returncode=0,stdout='Saved',stderr='')
-        with patch('serve.subprocess.run',side_effect=agent): serve.run_personal_inbox_agent('note','node')
-        task=self.store.snapshot()['workspace']['tasks'][0]
-        self.assertEqual(task['notes'],'Concurrent Firstmate change'); self.assertEqual(task['status'],'open')
-        self.assertEqual(serve.INBOX.read_bytes(),note)
-        self.assertEqual(serve.read_status()['state'],'error')
+    def test_voice_handoff_waits_for_receiver_then_publishes_confirmed_outcome(self):
+        self.migrate()
+        before = self.store.snapshot()
+        retained = {path: path.read_bytes() for path in (self.legacy_path, serve.INBOX, serve.ARCHIVE)}
+        outbox = self.voice_outbox()
+        transcript = '  确认完成 Task 这个待办。\n'
+        with patch('serve.start_agenda_worker'):
+            result = serve.append_inbox_and_process(transcript, identity='confirmed-task')
+        self.assertEqual(result['request']['state'], 'delivery_pending')
+        self.assertEqual(result['text'], transcript)
+        self.assertEqual(self.store.snapshot(), before)
+        outbox.tick()  # Actual inbox owner, entirely inside this temporary home.
+        pending = outbox.snapshot()['requests'][0]
+        self.assertEqual(pending['state'], 'pending')
+        self.assertEqual(pending['transcript'], transcript)
+        self.assertEqual(self.store.snapshot(), before)
+
+        # Synthetic primary: existing tools confirm the requested personal-task deletion.
+        applied = self.store.apply([{'op': 'delete', 'collection': 'tasks', 'id': 't'}],
+                                   before['version'], 'now')
+        self.assertEqual(applied['workspace']['tasks'], [])
+        self.assertEqual(applied['workspace']['projects'], before['workspace']['projects'])
+        self.assertEqual(applied['workspace']['reminders'], before['workspace']['reminders'])
+        reply(outbox, 'confirmed-task', summary='已删除确认完成的待办；项目保留。')
+        outbox.tick()
+        self.assertEqual(outbox.snapshot()['requests'][0]['state'], 'applied')
+        with patch('serve.start_agenda_worker'):
+            replay = serve.append_inbox_and_process(transcript, identity='confirmed-task')
+        self.assertEqual(replay['request']['state'], 'applied')
+        outbox.tick()
+        self.assertEqual(self.store.snapshot()['version'], applied['version'])
+        self.assertEqual(len(outbox.records()), 1)
+        for path, original in retained.items():
+            self.assertEqual(path.read_bytes(), original)  # No legacy archive/reset side effect.
+        self.assertFalse(hasattr(serve, 'run_personal_inbox_agent'))
+
+    def test_voice_receiver_conflict_retains_request_without_rolling_back_dashboard_edit(self):
+        self.migrate()
+        outbox = self.voice_outbox()
+        transcript = '确认完成 Task 这个待办。'
+        original_note = serve.INBOX.read_bytes()
+        with patch('serve.start_agenda_worker'):
+            serve.append_inbox_and_process(transcript, identity='conflicting-task')
+        outbox.tick()
+        receiver = self.store.snapshot()
+        manual = copy.deepcopy(receiver['workspace'])
+        manual['tasks'][0]['notes'] = 'Concurrent dashboard change'
+        _, manual_version = serve.update_workspace({'tasks': manual['tasks']}, receiver['version'])
+        with self.assertRaises(ContextConflict):
+            self.store.apply([{'op': 'delete', 'collection': 'tasks', 'id': 't'}], receiver['version'], 'now')
+        outbox.tick()
+        self.assertEqual(outbox.snapshot()['requests'][0]['state'], 'pending')
+        current = self.store.snapshot()
+        self.assertEqual(current['version'], manual_version)
+        self.assertEqual(current['workspace']['tasks'][0]['notes'], 'Concurrent dashboard change')
+        self.assertEqual(current['workspace']['tasks'][0]['status'], 'open')
+        self.assertEqual(current['workspace']['projects'], receiver['workspace']['projects'])
+
+        # Fresh read/reconsider: clarify instead of deleting a now-changed target.
+        reply(outbox, 'conflicting-task', outcome='clarification', summary='待办刚被修改，仍要删除吗？')
+        outbox.tick()
+        outcome = outbox.snapshot()['requests'][0]
+        self.assertEqual(outcome['state'], 'clarification')
+        self.assertEqual(outcome['transcript'], transcript)
+        outbox.retry('conflicting-task')
+        outbox.tick()
+        self.assertEqual(self.store.snapshot()['version'], manual_version)
+        self.assertEqual(serve.INBOX.read_bytes(), original_note)
+        self.assertEqual(len(outbox.records()), 1)
 
     def test_migration_failure_restores_source_and_configuration(self):
         source=self.legacy_path.read_bytes(); settings=(self.home/'.pi/settings.json').read_bytes()

@@ -1,6 +1,6 @@
 # Firstmate personal context and the My dashboard
 
-Firstmate owns the durable context. The dashboard and voice capture edit the same records; Firstmate does not connect to the dashboard to obtain or change its agenda.
+Firstmate owns the durable context. Manual dashboard editors change those records through the shared locked/versioned store. Voice capture submits a durable request for Firstmate to interpret and apply; Firstmate does not connect to the dashboard to obtain or change its agenda.
 
 ## Ownership and normal loading
 
@@ -23,7 +23,9 @@ Unknown existing record fields and IDs are preserved. Changes validate fields an
 
 ## Voice, progress and failure handling
 
-Voice processing reads the current personal context, prepares proposed edits in a temporary scratch directory, validates them, then commits through the same lock and version check. Scratch is removed afterward and is not another editable store. A conflict retains the voice note for retry; failure never restores an old Firstmate snapshot over a newer edit. Notes are archived only after a successful commit. If saving succeeds but subsequent note archival fails, inspect current records before retrying.
+My transcribes locally and saves the exact quoted transcript in `data/.agenda-requests/`, then sends a fixed agenda-only request through Firstmate's existing `fm-inbox.sh note --request-id` owner. My does not launch an independent agenda-editing agent or archive new requests through the legacy inbox. Pending delivery survives errors and server restarts; retries keep the same identity/body. Firstmate reads current context and applies edits through `personal_context_update`, reconsidering after a version conflict. No failed or stale request restores an older snapshot over a newer edit.
+
+Announcement or acknowledgment means pending/received, not applied. The UI shows success only from a matching durable actual outcome, and distinguishes clarification/no-change/rejection. Firstmate keeps projects long-term, deletes only confirmed completed personal tasks / one-off reminders, and clarifies ambiguous recognition or targets. Dictated software work is not execution permission; personal-context snapshots are not printed in replies. The separate music notebook route remains record-only. See [voice agenda requests](../../docs/voice-agenda.md) for reply format, recovery and the receiver's non-transactional edit-before-reply crash limitation.
 
 Scheduled project-progress updates also use the shared versioned store. Concurrent Firstmate changes cause stale updates to fail instead of overwriting them. Corrupt or missing context fails closed; the dashboard never falls back to the old JSON.
 
@@ -39,7 +41,7 @@ Backups and manifests are under `agent-workflow/archives/personal-context-migrat
 
 ## Validation
 
-Run `python3 -m unittest discover -s tests -q` from My. Set `PI_PACKAGE_DIR` to the installed `@earendil-works/pi-coding-agent` directory to verify Pi's normal append-context loading and actual local tool execution. Tests use temporary fixtures, including HTTP edits, cross-process contention, stale updates, voice conflicts, source-field preservation, failed migration rollback, and legacy-store non-resurrection.
+Run `python3 -m unittest discover -s tests -q` from My. Set `PI_PACKAGE_DIR` to the installed `@earendil-works/pi-coding-agent` directory to verify Pi's normal append-context loading and actual local tool execution. Set `MY_AGENDA_TEST_INBOX_ROOT` to read-only Firstmate owner sources for handoff coverage; tests copy the scripts into isolated homes rather than calling the real inbox. Tests use temporary fixtures, including durable voice requests/replies, receiver conflicts without rollback, HTTP edits, cross-process contention, source-field preservation, failed migration rollback, and legacy-store non-resurrection.
 
 ## Live migration receipt — 2026-10-04
 
@@ -47,12 +49,12 @@ The live My installation now uses Firstmate-owned context. All 4 original projec
 
 The old arrays were emptied only after destination and projection verification. Source data and destination/configuration snapshots are in `archives/personal-context-migration-1791097876072289000/`; its `verification.json` records the live checks. Previous code is in `archives/personal-context-code-1791097875976670000/`. Existing project registry and captain preferences remained byte-identical. Clock/focus data and unrelated dashboard files were not migrated or deleted.
 
-All **50 tests passed**. Live verification checked Pi's standard context loading in an isolated loader, local Firstmate tool reads and no-op writes, dashboard reads and no-op writes, exact record preservation, and retirement of the old bridge. Verification changed no live record values. Voice concurrency/failure behavior was exercised with temporary proposals and fixture agent responses; live health confirms voice and inbox-agent availability.
+At that migration, **50 tests passed**. Live verification checked Pi's standard context loading in an isolated loader, local Firstmate tool reads and no-op writes, dashboard reads and no-op writes, exact record preservation, and retirement of the old bridge. Verification changed no live record values. Voice concurrency/failure behavior at that time used temporary proposals and fixture agent responses; the historical health check confirmed that former inbox-agent path. Current voice handling uses the durable Firstmate handoff described above.
 
 Only the idle dashboard was restarted. Firstmate's lock owner stayed unchanged, and no Firstmate startup, reload, messaging, worker-dispatch or stop command was run. **Its current session still needs a safe `/reload` or a normal next session to load the new context and tools.** Once loaded, subsequent agenda changes refresh automatically at the next normal turn; the dashboard can already read and edit the migrated records.
 
 ## Obsolete-code cleanup
 
-The retired bridge and legacy direct-file inbox runner were removed after migration. Voice uses only temporary `data/proposal.json` files before versioned commits to Firstmate. Record validation remains shared in `personal_records.py`. Existing retry, validation, archive-preservation and concurrent-note tests now exercise the Firstmate store. All Clock history, completed personal items, voice archives and migration backups are retained.
+The retired bridge and legacy direct-file inbox runner were removed after migration. That earlier cleanup introduced the temporary proposal path, which the current durable Firstmate handoff has now replaced. Record validation remains shared in `personal_records.py`; current voice tests exercise request identity, actual outcomes and receiver CAS/no-rollback behavior. Historical Clock data, voice archives and migration backups are preserved; current completed-task/reminder cleanup follows the confirmed-request policy above.
 
-Cleanup verification: **40 retained/updated tests passed** in both the isolated worktree and deployed checkout. The removed tests covered only the retired bridge. The server source no longer references the legacy data file or retired endpoint. Live checks verified the shared API, unchanged history/data hashes, and healthy voice warmup. Cleanup backups remain under `archives/retired-bridge-cleanup-*`.
+Historical cleanup verification: **40 retained/updated tests passed** in both the isolated worktree and deployed checkout. The removed tests covered only the retired bridge. The server source no longer references the legacy data file or retired endpoint. Live checks verified the shared API, unchanged history/data hashes, and healthy voice warmup. Cleanup backups remain under `archives/retired-bridge-cleanup-*`.

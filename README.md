@@ -92,9 +92,9 @@ Codex per-skill links leave `~/.codex/skills/.system` in place. Re-run the insta
 
 Keep one repo. A second “skills-only” GitHub repo would drift.
 
-### Agent account / usage limit
+### Project-progress summarizer account / usage limit
 
-The headless inbox agent bills whichever Cursor account authenticates it.
+The project-progress summarizer in `my-agent` uses whichever Cursor account authenticates it. Voice agenda requests go to Firstmate and use its existing provider configuration; local Whisper needs no account.
 
 **Option A — API key for a specific account (recommended):**
 
@@ -126,7 +126,7 @@ On Apple Silicon, ASR uses **MLX Whisper medium** (`mlx-community/whisper-medium
 
 For **Pi terminal voice input** (editable chat draft, not an inbox note), see [`pi_voice/README.md`](pi_voice/README.md). Use `/voice` or `Ctrl+Shift+V` to start and stop; review the transcript before sending.
 
-Then `my-agent` prepares a temporary proposal. The server validates and commits it to Firstmate’s personal context (projects / short-term to-dos / reminders).
+My saves the exact transcript in a durable local request and sends it to Firstmate through its existing inbox. Firstmate interprets and applies personal-agenda edits with the shared locked/versioned tools, then returns a concise outcome. Pending or received means the change is not yet confirmed. If Firstmate is offline, the request remains recoverable and retries with the same identity. See [voice agenda requests](docs/voice-agenda.md).
 
 ## 工作台
 
@@ -136,28 +136,30 @@ Then `my-agent` prepares a temporary proposal. The server validates and commits 
 | 短期待办 | Near-term actionable tasks |
 | 提醒 | Date-based nudges (birthdays, appointments) |
 
-Add projects in the UI with a name + absolute path (e.g. `/Users/eddy/Documents/…`). Paths are validated before save. When a voice note mentions a project, the agent can inspect that directory and update the progress note.
+Add projects in the UI with a name + absolute path (e.g. `/Users/eddy/Documents/…`). Paths are validated before save. Voice requests can update the personal project record; directory inspection belongs to the separate daily project-progress check. Firstmate retains projects long-term, deletes only confirmed completed personal tasks / one-off reminders, and asks for clarification when recognition or the target is ambiguous.
 
 ## What is / isn’t automatic
 
 | Piece | Automatic? |
 |--------|------------|
 | Speech → text | Yes (local Whisper) |
-| Text → `data/inbox.md` | Yes |
-| Inbox → Firstmate personal context | Yes (`my-agent` proposal + protected commit) |
+| Transcript → durable local request → Firstmate inbox | Yes (stable request identity) |
+| Request → Firstmate personal context | Firstmate applies it and publishes the actual outcome |
 | Weekday 9:00 launch | Yes (after `./schedule/install-launchd.sh`) |
 | Inject into the open IDE chat | **No** — not supported by Cursor |
 
-Voice proposals run in a temporary directory; only the server’s shared update path commits them to Firstmate’s durable context.
+My does not launch an independent agenda-editing agent. Manual dashboard editors remain available with their existing concurrency protection. The separate music inspiration shortcut keeps its record-only notebook behavior.
 
 ## Data
 
 ```
 data/
   todos.json         # inactive migration residue; not read or written by the server
-  inbox.md           # pending notes (cleared after processing)
-  inbox-archive.md   # processed raw notes
-  .agent-status.json # UI polling status
+  .agenda-requests/  # private durable voice requests, transcripts and outcomes
+  .firstmate-context.json # private binding to the existing Firstmate home
+  inbox.md           # preserved legacy notes; not the new voice delivery queue
+  inbox-archive.md   # preserved historical voice archive
+  .agent-status.json # separate project-progress job status
   daily/ weekly/     # summaries (optional later)
   tmp/               # voice temp + serve/launchd logs
 schedule/
