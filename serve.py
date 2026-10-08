@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import hashlib
 import mimetypes
 import os
 import platform
@@ -20,13 +19,13 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from project_progress import add_progress, clean_progress, inspect_project
+from firstmate_context import ContextStore, ContextError, ContextConflict
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 INBOX = DATA / "inbox.md"
 INBOX_PENDING = DATA / ".inbox-pending.md"
 ARCHIVE = DATA / "inbox-archive.md"
-WORKSPACE = DATA / "todos.json"  # projects + short-term todos + reminders
 STATUS = DATA / ".agent-status.json"
 PROGRESS_STATE = DATA / ".project-progress.json"
 ENV_FILE = ROOT / ".env"
@@ -54,7 +53,7 @@ load_dotenv()
 
 AGENT_PROMPT = """You are the My workspace inbox processor.
 
-Workspace file: data/todos.json with three arrays:
+Temporary proposal file: data/proposal.json with three arrays. This scratch file is not the durable store; the server validates and commits it to Firstmate after you finish:
 - projects: longer-term work, each with a linked local directory (path)
 - tasks: short-term to-dos
 - reminders: date-based nudges (birthdays, appointments, "remind me on …")
@@ -82,16 +81,16 @@ Workspace file: data/todos.json with three arrays:
    When fixing obvious ASR typos in titles, just write the corrected title. NEVER put ASR
    correction chatter in notes (no "ASR：闲语→闲鱼", no "ASR: x -> y", no "heard as…").
    Leave notes empty unless there is real user context beyond the title.
-5. First READ data/todos.json, then write the merged result back with the write tool:
+5. First READ data/proposal.json, then write the merged result back with the write tool:
    keep every existing item, merge new/changed items; do not duplicate clearly identical
    open items; preserve projects/tasks/reminders keys even if empty; pretty JSON
-   (2-space indent). NEVER write todos.json from scratch — it holds all existing data.
+   (2-space indent). NEVER write proposal.json from scratch — it holds all existing data.
    If you classified ANY item into tasks/reminders/projects, you MUST write
-   data/todos.json in this run. Claiming you created a task/reminder without actually
+   data/proposal.json in this run. Claiming you created a task/reminder without actually
    writing the file is a FAILED run. If every item was filler/tests, skip this write.
 6. NEVER edit data/inbox.md or data/inbox-archive.md. The server verifies your
    workspace changes, then appends the original note to the archive and clears the
-   inbox. Only write data/todos.json.
+   inbox. Only write data/proposal.json.
 7. Do not ask questions. Do not edit app/, serve.py, or schedule/.
 8. Reply with one short line summarizing what you actually saved. If ALL notes are
    filler/tests with no actionable items, reply exactly "No clear items; archived only."
@@ -118,10 +117,6 @@ _job_seq = 0
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
-
-
-def empty_workspace() -> dict:
-    return {"projects": [], "tasks": [], "reminders": []}
 
 
 class WorkspaceDataError(RuntimeError):
@@ -167,70 +162,58 @@ def atomic_write(path: Path, content: str | bytes) -> None:
                 pass
 
 
-def normalize_workspace(payload: object) -> dict:
-    """Accept legacy {tasks} or full workspace; always return the three arrays."""
-    if not isinstance(payload, dict):
-        return empty_workspace()
-    projects = payload.get("projects")
-    tasks = payload.get("tasks")
-    reminders = payload.get("reminders")
-    return {
-        "projects": projects if isinstance(projects, list) else [],
-        "tasks": tasks if isinstance(tasks, list) else [],
-        "reminders": reminders if isinstance(reminders, list) else [],
-    }
-
-
-def _workspace_version(raw: bytes) -> str:
-    return hashlib.sha256(raw).hexdigest()
-
-
-def _read_workspace_unlocked() -> tuple[dict, str]:
-    if not WORKSPACE.exists():
-        data = empty_workspace()
-        raw = (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode()
-        return data, _workspace_version(raw)
-    raw = WORKSPACE.read_bytes()
-    try:
-        data = json.loads(raw)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise WorkspaceDataError(f"{WORKSPACE} is not valid JSON: {exc}") from exc
-    return normalize_workspace(data), _workspace_version(raw)
-
-
 def read_workspace() -> dict:
     with _workspace_lock:
-        data, _ = _read_workspace_unlocked()
-        return data
+        personal = personal_snapshot()
+        return {**personal['workspace'], '_version': personal['version']}
 
 
 def read_workspace_snapshot() -> dict:
-    with _workspace_lock:
-        data, version = _read_workspace_unlocked()
-        return {**data, "_version": version}
+    return {**read_workspace(), '_owner': 'Firstmate'}
 
 
 def write_workspace(payload: dict) -> dict:
-    data = normalize_workspace(payload)
-    with _workspace_lock:
-        atomic_write(WORKSPACE, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-    return data
+    result = personal_replace(payload, payload.get('_version'))
+    return {**result['workspace'], '_version': result['version']}
 
 
 def update_workspace(payload: dict, expected_version: object) -> tuple[dict, str]:
-    """Apply an HTTP update only if it is based on the current workspace."""
+    """Commit browser edits only to the Firstmate-owned, versioned store."""
     with _workspace_lock:
         if _workspace_agent_active:
-            raise WorkspaceBusy("my-agent is updating the workspace; retry after it finishes")
-        current, version = _read_workspace_unlocked()
-        if not isinstance(expected_version, str) or expected_version != version:
-            raise WorkspaceConflict("workspace changed; refresh and retry your edit")
-        for key in ("projects", "tasks", "reminders"):
-            if key in payload and isinstance(payload[key], list):
-                current[key] = payload[key]
-        raw = json.dumps(normalize_workspace(current), indent=2, ensure_ascii=False) + "\n"
-        atomic_write(WORKSPACE, raw)
-        return current, _workspace_version(raw.encode())
+            raise WorkspaceBusy("my-agent is updating personal context; retry after it finishes")
+        result = personal_replace(payload, expected_version)
+        return result['workspace'], result['version']
+
+
+def personal_store():
+    marker = DATA / '.firstmate-context.json'
+    if not marker.exists():
+        raise WorkspaceDataError('Firstmate context binding is missing; legacy dashboard storage is retired')
+    try:
+        config = json.loads(marker.read_text())
+        if config != {'schema': 1, 'home': '../agent-workflow/firstmate'}:
+            raise ValueError('Unsupported Firstmate context binding')
+        return ContextStore(DATA / config['home'])
+    except (OSError, ValueError) as exc:
+        raise WorkspaceDataError(f'Invalid Firstmate context binding: {exc}') from exc
+
+
+def personal_snapshot():
+    store = personal_store()
+    try:
+        return store.snapshot()
+    except (ContextError, OSError) as exc:
+        raise WorkspaceDataError(str(exc)) from exc
+
+
+def personal_replace(payload, version):
+    try:
+        return personal_store().replace(payload, version)
+    except ContextConflict as exc:
+        raise WorkspaceConflict(str(exc)) from exc
+    except (ContextError, OSError) as exc:
+        raise WorkspaceDataError(str(exc)) from exc
 
 
 def append_pending_inbox(text: str) -> None:
@@ -299,11 +282,7 @@ def ensure_data() -> None:
         atomic_write(INBOX_PENDING, "")
     if not ARCHIVE.exists():
         atomic_write(ARCHIVE, "# Inbox archive\n")
-    if not WORKSPACE.exists():
-        write_workspace(empty_workspace())
-    else:
-        # Migrate legacy {tasks}-only files in place.
-        write_workspace(read_workspace())
+    personal_snapshot()  # Required sole owner; never create a replacement store.
     if not STATUS.exists():
         write_status("idle", "Ready for voice input.")
 
@@ -545,10 +524,10 @@ MY_AGENT_DIR = ROOT / "my-agent"
 MY_AGENT_ENTRY = MY_AGENT_DIR / "dist" / "index.js"
 
 
-def verified_inbox_result(before: dict, output: str) -> str:
+def verified_inbox_result(before: dict, output: str, workspace_path: Path) -> str:
     """Validate persisted records, and describe changes without trusting agent prose."""
     try:
-        after = json.loads(WORKSPACE.read_text(encoding="utf-8"))
+        after = json.loads(workspace_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise WorkspaceDataError(f"Agent did not save a valid workspace: {exc}") from exc
     if not isinstance(after, dict):
@@ -618,76 +597,61 @@ def verified_inbox_result(before: dict, output: str) -> str:
     raise WorkspaceDataError("Agent reported completion without saving any workspace changes")
 
 
-def run_inbox_agent(note_preview: str, node: str) -> None:
-    """Own inbox completion: verify saves before archiving; restore failed attempts."""
+def run_personal_inbox_agent(note_preview: str, node: str) -> None:
+    """Let voice propose edits in scratch, then commit to Firstmate with CAS.
+
+    A failed or conflicting proposal never restores an old Firstmate snapshot.
+    Incoming notes remain queued until the proposal commits successfully.
+    """
     global _workspace_agent_active
-    snapshots: dict[Path, bytes | None] = {}
-
-    def restore() -> None:
-        with _workspace_lock, _inbox_lock:
-            for path, content in snapshots.items():
-                if content is None:
-                    path.unlink(missing_ok=True)
-                else:
-                    atomic_write(path, content)
-
     with _workspace_lock:
         _workspace_agent_active = True
     try:
-        with _workspace_lock, _inbox_lock:
-            before = read_workspace()
-            snapshots = {
-                path: path.read_bytes() if path.exists() else None
-                for path in (WORKSPACE, INBOX, ARCHIVE)
-            }
-        prompt = AGENT_PROMPT + f"\nCurrent local date/time: {now_iso()}\n"
-        # An inherited override must not redirect the agent away from this server's data.
-        env = {**os.environ, "AGENT_WORKSPACE": str(ROOT)}
-        for attempt in range(2):
-            write_status("running", "my-agent is updating your workspace…", lastNote=note_preview)
-            proc = subprocess.run(
-                [node, str(MY_AGENT_ENTRY), prompt], cwd=str(ROOT),
-                capture_output=True, text=True, timeout=900, env=env,
-            )
-            out, err = (proc.stdout or "").strip(), (proc.stderr or "").strip()
-            if proc.returncode:
-                raise RuntimeError(err or out or f"Agent failed (exit {proc.returncode})")
-            try:
-                summary = verified_inbox_result(before, out)
-            except WorkspaceDataError as exc:
-                restore()
-                if attempt == 1:
-                    raise
-                write_status(
-                    "running", "Agent did not save valid changes — retrying with the original note…",
-                    lastNote=note_preview, lastResult=out[-2000:],
-                )
-                prompt += (
-                    f"\nYour previous attempt failed verification: {exc}. "
-                    "All original files have been restored. Read the inbox again and "
-                    "use the write tool to save the merged data/todos.json before finishing.\n"
-                )
-                continue
-            # Ignore any model edits to these files: archive the original input once,
-            # preserving all existing history. New arrivals remain in INBOX_PENDING.
-            with _inbox_lock:
-                original = (snapshots[INBOX] or b"").decode("utf-8")
-                body = original.removeprefix(INBOX_HEADER.rstrip()).strip()
-                archive = (snapshots[ARCHIVE] or b"# Inbox archive\n").decode("utf-8")
-                if body:
-                    separator = "" if archive.endswith("\n\n") else ("\n" if archive.endswith("\n") else "\n\n")
-                    archive += separator + body + "\n"
-                atomic_write(ARCHIVE, archive)
-                atomic_write(INBOX, INBOX_HEADER)
-            write_status("done", summary, lastNote=note_preview, lastResult=out[-2000:])
-            return
-    except Exception as exc:  # noqa: BLE001
-        # Restore before publishing failure, so a refresh/retry sees the original data.
-        restore()
-        write_status(
-            "error", f"Note not processed; original note retained: {str(exc)[-600:]}",
-            lastNote=note_preview, lastResult=traceback.format_exc()[-2000:],
-        )
+        snapshot = personal_snapshot()
+        before = snapshot['workspace']
+        with _inbox_lock:
+            original = INBOX.read_bytes()
+        with tempfile.TemporaryDirectory(prefix='my-voice-proposal-') as scratch:
+            root = Path(scratch)
+            (root / 'data').mkdir()
+            proposal = root / 'data/proposal.json'
+            prompt = AGENT_PROMPT + f'\nCurrent local date/time: {now_iso()}\n'
+            prompt += '\nThis is a temporary proposal workspace. Do not access or edit Firstmate files. The server validates and commits your proposal.\n'
+            for attempt in range(2):
+                atomic_write(proposal, json.dumps(before, ensure_ascii=False, indent=2) + '\n')
+                atomic_write(root / 'data/inbox.md', original)
+                write_status('running', 'Processing note into Firstmate personal context…', lastNote=note_preview)
+                proc = subprocess.run([node, str(MY_AGENT_ENTRY), prompt], cwd=root,
+                    capture_output=True, text=True, timeout=900,
+                    env={**os.environ, 'AGENT_WORKSPACE': str(root)})
+                out, err = (proc.stdout or '').strip(), (proc.stderr or '').strip()
+                if proc.returncode:
+                    raise RuntimeError(err or out or 'Voice agent failed')
+                try:
+                    summary = verified_inbox_result(before, out, proposal)
+                except WorkspaceDataError as exc:
+                    if attempt == 1:
+                        raise
+                    prompt += f'\nPrevious proposal was rejected: {exc}. Correct it and save the merged records.\n'
+                    continue
+                after = json.loads(proposal.read_text())
+                if after != before:
+                    personal_replace(after, snapshot['version'])
+                break
+        with _inbox_lock:
+            # New incoming notes use INBOX_PENDING; refuse unexpected manual edits.
+            if INBOX.read_bytes() != original:
+                raise WorkspaceConflict('Inbox changed during processing; context saved, note retained for review')
+            body = original.decode().removeprefix(INBOX_HEADER.rstrip()).strip()
+            archive = ARCHIVE.read_text() if ARCHIVE.exists() else '# Inbox archive\n'
+            if body:
+                archive = archive.rstrip() + '\n\n' + body + '\n'
+            atomic_write(ARCHIVE, archive)
+            atomic_write(INBOX, INBOX_HEADER)
+        write_status('done', summary, lastNote=note_preview, lastResult=out[-2000:])
+    except Exception as exc:
+        write_status('error', f'Note retained; Firstmate context was not rolled back: {str(exc)[-600:]}',
+                     lastNote=note_preview)
     finally:
         with _workspace_lock:
             _workspace_agent_active = False
@@ -696,7 +660,6 @@ def run_inbox_agent(note_preview: str, node: str) -> None:
 def run_agent_once(
     note_preview: str,
     prompt: str = AGENT_PROMPT,
-    verify: "callable[[], bool] | None" = None,
 ) -> None:
     global _workspace_agent_active
     node = shutil.which("node")
@@ -716,91 +679,10 @@ def run_agent_once(
         return
 
     if prompt == AGENT_PROMPT:
-        run_inbox_agent(note_preview, node)
+        run_personal_inbox_agent(note_preview, node)
         return
 
-    write_status(
-        "running",
-        "my-agent is updating your workspace…",
-        lastNote=note_preview,
-    )
-    cmd = [node, str(MY_AGENT_ENTRY), prompt]
-    attempts = 2 if verify else 1
-    with _workspace_lock:
-        # Block versioned UI writes before the subprocess can read its baseline.
-        workspace_before = WORKSPACE.read_bytes() if WORKSPACE.exists() else None
-        _workspace_agent_active = True
-    try:
-        for attempt in range(1, attempts + 1):
-            try:
-                proc = subprocess.run(
-                    cmd,
-                    cwd=str(ROOT),
-                    capture_output=True,
-                    text=True,
-                    timeout=900,
-                    env=os.environ.copy(),
-                )
-                out = (proc.stdout or "").strip()
-                err = (proc.stderr or "").strip()
-                summary = out.splitlines()[-1] if out else (err.splitlines()[-1] if err else "")
-                if proc.returncode != 0:
-                    write_status(
-                        "error",
-                        summary or f"Agent failed (exit {proc.returncode}).",
-                        lastNote=note_preview,
-                        lastResult=(out or err)[-2000:],
-                    )
-                    return
-                try:
-                    # Never leave a malformed agent write in place.
-                    read_workspace()
-                except WorkspaceDataError:
-                    if workspace_before is not None:
-                        with _workspace_lock:
-                            atomic_write(WORKSPACE, workspace_before)
-                    raise
-                if verify and not verify():
-                    if attempt < attempts:
-                        write_status(
-                            "running",
-                            "Agent finished but made no changes — retrying once…",
-                            lastNote=note_preview,
-                            lastResult=out[-2000:] if out else "",
-                        )
-                        continue
-                    write_status(
-                        "error",
-                        "Agent finished without applying changes (gave up after retry).",
-                        lastNote=note_preview,
-                        lastResult=out[-2000:] if out else "",
-                    )
-                    return
-                write_status(
-                    "done",
-                    summary or "Workspace updated.",
-                    lastNote=note_preview,
-                    lastResult=out[-2000:] if out else "",
-                )
-                return
-            except subprocess.TimeoutExpired:
-                write_status(
-                    "error",
-                    "Agent timed out after 15 minutes (local model is slow; consider a smaller/faster model).",
-                    lastNote=note_preview,
-                )
-                return
-            except Exception as exc:  # noqa: BLE001
-                write_status(
-                    "error",
-                    f"Agent launch failed: {exc}",
-                    lastNote=note_preview,
-                    lastResult=traceback.format_exc()[-2000:],
-                )
-                return
-    finally:
-        with _workspace_lock:
-            _workspace_agent_active = False
+    write_status('error', 'Unsupported job; use the shared personal context update path.', lastNote=note_preview)
 
 
 def summarize_progress(inspections: list[dict]) -> dict[str, str]:
@@ -922,7 +804,6 @@ def enqueue_process(
     note_preview: str,
     prompt: str = AGENT_PROMPT,
     running_msg: str = "Note saved. Starting my-agent…",
-    verify: "callable[[], bool] | None" = None,
 ) -> dict:
     global _worker_started
     with _worker_start_lock:
@@ -944,7 +825,7 @@ def enqueue_process(
             running_msg,
             lastNote=note_preview,
         )
-    _job_queue.put((note_preview, prompt, verify))
+    _job_queue.put((note_preview, prompt))
     status["queueDepth"] = pending + 1
     return status
 
@@ -1239,6 +1120,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             except WorkspaceDataError as exc:
                 self._send_json(500, {"ok": False, "error": str(exc)})
+                return
+            except ValueError as exc:
+                self._send_json(400, {"ok": False, "error": str(exc)})
                 return
             self._send_json(200, {"ok": True, "_version": version})
             return

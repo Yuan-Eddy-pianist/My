@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 import serve
+from context_fixture import create_context
 
 
 class PersistenceTests(unittest.TestCase):
@@ -14,15 +15,13 @@ class PersistenceTests(unittest.TestCase):
             serve.DATA,
             serve.INBOX,
             serve.INBOX_PENDING,
-            serve.WORKSPACE,
         )
-        serve.DATA = root
+        serve.DATA = root / "data"
         serve.INBOX = root / "inbox.md"
         serve.INBOX_PENDING = root / ".inbox-pending.md"
-        serve.WORKSPACE = root / "todos.json"
         serve.atomic_write(serve.INBOX, serve.INBOX_HEADER)
         serve.atomic_write(serve.INBOX_PENDING, "")
-        serve.write_workspace(serve.empty_workspace())
+        self.store = create_context(root, {"projects":[],"tasks":[],"reminders":[]})
         serve._workspace_agent_active = False
 
     def tearDown(self):
@@ -30,24 +29,27 @@ class PersistenceTests(unittest.TestCase):
             serve.DATA,
             serve.INBOX,
             serve.INBOX_PENDING,
-            serve.WORKSPACE,
         ) = self.original_paths
         serve._workspace_agent_active = False
         self.tmp.cleanup()
 
+    @staticmethod
+    def task(identity):
+        return {"id":identity,"title":identity,"due":None,"status":"open","created":"before","notes":""}
+
     def test_stale_workspace_update_is_rejected(self):
         first = serve.read_workspace_snapshot()
         _, new_version = serve.update_workspace(
-            {"tasks": [{"id": "first"}]}, first["_version"]
+            {"tasks": [self.task("first")]}, first["_version"]
         )
 
         with self.assertRaises(serve.WorkspaceConflict):
             serve.update_workspace(
-                {"tasks": [{"id": "stale"}]}, first["_version"]
+                {"tasks": [self.task("stale")]}, first["_version"]
             )
 
         current = serve.read_workspace_snapshot()
-        self.assertEqual(current["tasks"], [{"id": "first"}])
+        self.assertEqual(current["tasks"], [self.task("first")])
         self.assertEqual(current["_version"], new_version)
 
     def test_browser_update_is_rejected_while_agent_is_active(self):
@@ -59,25 +61,27 @@ class PersistenceTests(unittest.TestCase):
 
     def test_malformed_workspace_is_not_treated_as_empty(self):
         malformed = b'{"tasks": ['
-        serve.atomic_write(serve.WORKSPACE, malformed)
+        serve.atomic_write(self.store.path, malformed)
 
         with self.assertRaises(serve.WorkspaceDataError):
             serve.read_workspace()
 
-        self.assertEqual(serve.WORKSPACE.read_bytes(), malformed)
+        self.assertEqual(self.store.path.read_bytes(), malformed)
 
     def test_concurrent_workspace_reads_never_see_partial_json(self):
         failures = []
 
         def writer(prefix):
             for index in range(30):
-                serve.write_workspace(
-                    {
-                        "projects": [],
-                        "tasks": [{"id": f"{prefix}-{index}", "notes": "x" * 5000}],
-                        "reminders": [],
-                    }
-                )
+                while True:
+                    snapshot = serve.read_workspace_snapshot()
+                    item = {**self.task(f"{prefix}-{index}"), "notes":"x"*5000}
+                    try:
+                        serve.update_workspace({"tasks":[item]}, snapshot['_version'])
+                        break
+                    except serve.WorkspaceConflict:
+                        continue
+
 
         threads = [threading.Thread(target=writer, args=(name,)) for name in ("a", "b")]
         for thread in threads:

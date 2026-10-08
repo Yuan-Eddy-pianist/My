@@ -7,6 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import serve
+from context_fixture import create_context
+from firstmate_context import render_context
 
 
 class InboxProcessingTests(unittest.TestCase):
@@ -14,16 +16,16 @@ class InboxProcessingTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
+        (root / "data").mkdir()
         entry = root / "agent.js"
         entry.write_text("// subprocess is mocked\n", encoding="utf-8")
         replacements = {
             "ROOT": root,
-            "DATA": root,
-            "INBOX": root / "inbox.md",
-            "INBOX_PENDING": root / ".inbox-pending.md",
-            "ARCHIVE": root / "inbox-archive.md",
-            "WORKSPACE": root / "todos.json",
-            "STATUS": root / ".agent-status.json",
+            "DATA": root / "data",
+            "INBOX": root / "data" / "inbox.md",
+            "INBOX_PENDING": root / "data" / ".inbox-pending.md",
+            "ARCHIVE": root / "data" / "inbox-archive.md",
+            "STATUS": root / "data" / ".agent-status.json",
             "MY_AGENT_ENTRY": entry,
             "_workspace_agent_active": False,
             "_voice_pending": 0,
@@ -45,15 +47,12 @@ class InboxProcessingTests(unittest.TestCase):
         )
         serve.atomic_write(serve.INBOX_PENDING, "")
         serve.atomic_write(serve.ARCHIVE, "# Inbox archive\n\nAn earlier note must survive.\n")
-        serve.write_workspace(
-            {
-                "projects": [],
-                "tasks": [self.item("existing-task", "Keep the existing task")],
-                "reminders": [],
-            }
-        )
+        self.store = create_context(root, {
+            "projects": [], "tasks": [self.item("existing-task", "Keep the existing task")], "reminders": []
+        })
+        self.current_workspace = self.store.path
         self.originals = {
-            path: path.read_bytes() for path in (serve.INBOX, serve.ARCHIVE, serve.WORKSPACE)
+            path: path.read_bytes() for path in (serve.INBOX, serve.ARCHIVE, self.current_workspace)
         }
 
     @staticmethod
@@ -83,8 +82,24 @@ class InboxProcessingTests(unittest.TestCase):
         )
         serve.write_workspace(workspace)
 
+    def seed(self, workspace):
+        workspace = {k: workspace[k] for k in ('projects','tasks','reminders')}
+        self.store.path.write_text(render_context({'schema':1,'workspace':workspace,'project_links':{}}))
+
     def run_agent(self, behavior):
-        with patch.object(serve.subprocess, "run", side_effect=behavior) as process:
+        def staged_behavior(*args, **kwargs):
+            scratch = Path(kwargs['env']['AGENT_WORKSPACE']) / 'data'
+            proposal = scratch / 'proposal.json'
+            current = self.current_workspace
+            self.current_workspace = proposal
+            try:
+                with patch.multiple(serve, INBOX=scratch/'inbox.md', ARCHIVE=scratch/'inbox-archive.md'):
+                    with patch.object(serve, 'read_workspace', side_effect=lambda: json.loads(proposal.read_text())):
+                        with patch.object(serve, 'write_workspace', side_effect=lambda value: serve.atomic_write(proposal,json.dumps(value))):
+                            return behavior(*args, **kwargs)
+            finally:
+                self.current_workspace = current
+        with patch.object(serve.subprocess, "run", side_effect=staged_behavior) as process:
             serve.run_agent_once(self.note)
         self.assertFalse(serve._workspace_agent_active)
         return process
@@ -174,7 +189,7 @@ class InboxProcessingTests(unittest.TestCase):
                 self.assertTrue(any(text in status["message"].lower()
                                     for text in ("no changes", "no clear items", "unchanged")),
                                 status["message"])
-                self.assertEqual(serve.WORKSPACE.read_bytes(), self.originals[serve.WORKSPACE])
+                self.assertEqual(self.current_workspace.read_bytes(), self.originals[self.current_workspace])
                 self.assert_archived_once()
 
     def test_noop_marker_only_counts_when_it_is_the_exact_final_line(self):
@@ -189,7 +204,7 @@ class InboxProcessingTests(unittest.TestCase):
 
     def test_formatting_only_workspace_write_is_not_a_semantic_change(self):
         def fake_agent(*args, **kwargs):
-            serve.atomic_write(serve.WORKSPACE, json.dumps(serve.read_workspace(), separators=(",", ":")))
+            serve.atomic_write(self.current_workspace, json.dumps(serve.read_workspace(), separators=(",", ":")))
             self.overwrite_bookkeeping()
             return self.completed()
 
@@ -220,7 +235,7 @@ class InboxProcessingTests(unittest.TestCase):
         workspace = serve.read_workspace()
         workspace["tasks"][0].update(due="2026-09-30", notes="Keep these existing details.")
         serve.write_workspace(workspace)
-        self.originals[serve.WORKSPACE] = serve.WORKSPACE.read_bytes()
+        self.originals[self.current_workspace] = self.current_workspace.read_bytes()
 
         for field in ("due", "notes"):
             with self.subTest(field=field):
@@ -260,7 +275,7 @@ class InboxProcessingTests(unittest.TestCase):
                         workspace = []
                     else:
                         del workspace[corruption]
-                    serve.atomic_write(serve.WORKSPACE, json.dumps(workspace))
+                    serve.atomic_write(self.current_workspace, json.dumps(workspace))
                     self.overwrite_bookkeeping()
                     return self.completed()
 
@@ -288,8 +303,8 @@ class InboxProcessingTests(unittest.TestCase):
         workspace = serve.read_workspace()
         legacy = self.item("legacy-reminder", "Existing undated reminder")
         workspace["reminders"].append(legacy)
-        serve.write_workspace(workspace)
-        self.originals[serve.WORKSPACE] = serve.WORKSPACE.read_bytes()
+        self.seed(workspace)
+        self.originals[self.current_workspace] = self.current_workspace.read_bytes()
 
         def fake_agent(*args, **kwargs):
             self.add_items()
@@ -305,8 +320,8 @@ class InboxProcessingTests(unittest.TestCase):
     def test_legacy_reminder_without_date_can_be_completed(self):
         workspace = serve.read_workspace()
         workspace["reminders"].append(self.item("legacy-reminder", "Existing undated reminder"))
-        serve.write_workspace(workspace)
-        self.originals[serve.WORKSPACE] = serve.WORKSPACE.read_bytes()
+        self.seed(workspace)
+        self.originals[self.current_workspace] = self.current_workspace.read_bytes()
 
         def fake_agent(*args, **kwargs):
             workspace = serve.read_workspace()
@@ -324,7 +339,7 @@ class InboxProcessingTests(unittest.TestCase):
 
     def test_malformed_workspace_write_rolls_back_all_files(self):
         def fake_agent(*args, **kwargs):
-            serve.atomic_write(serve.WORKSPACE, '{"tasks": [')
+            serve.atomic_write(self.current_workspace, '{"tasks": [')
             self.overwrite_bookkeeping()
             return self.completed()
 
