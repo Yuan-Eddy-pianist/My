@@ -46,7 +46,11 @@ button:disabled { opacity: .5; cursor: not-allowed; filter: none; }
 .clock-badge[data-running="1"]::before { background: var(--accent); }
 .voice-controls { position: relative; display: flex; align-items: center; flex: none; }
 .btn-mic { display: grid; place-items: center; flex: none; width: var(--ctrl-h); height: var(--ctrl-h); min-height: var(--ctrl-h); padding: 0; background: var(--accent); color: #fffefa; border-radius: 50%; }
-.voice-status-row { min-height: 40px; display: flex; justify-content: flex-end; padding-top: 8px; }
+.voice-status-row { min-height: 40px; display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding-top: 8px; }
+.agenda-recent { font-size: 11px; color: var(--muted); text-align: right; }
+.agenda-recent summary { cursor: pointer; }
+.agenda-recent ul { list-style: none; padding: 0; max-height: 160px; overflow: auto; }
+.agenda-recent li { margin: 6px 0; overflow-wrap: anywhere; }
 .voice-status { color: var(--muted); font-size: 11px; text-align: right; max-width: 100%; overflow-wrap: anywhere; }
 .voice-status[data-state="error"] { color: var(--danger); }
 .voice-status[data-state="recording"] { color: var(--danger); font-weight: 600; }

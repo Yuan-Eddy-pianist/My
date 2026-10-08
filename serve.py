@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local My server: static UI, local Whisper STT, inbox + my-agent."""
+"""Local My UI, local Whisper STT, and durable agenda requests to Firstmate."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, urlparse
 
 from project_progress import add_progress, clean_progress, inspect_project
 from firstmate_context import ContextStore, ContextError, ContextConflict
+from agenda_requests import AgendaRequests, RequestConflict
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
@@ -51,68 +52,20 @@ def load_dotenv(path: Path = ENV_FILE) -> None:
 
 load_dotenv()
 
-AGENT_PROMPT = """You are the My workspace inbox processor.
-
-Temporary proposal file: data/proposal.json with three arrays. This scratch file is not the durable store; the server validates and commits it to Firstmate after you finish:
-- projects: longer-term work, each with a linked local directory (path)
-- tasks: short-term to-dos
-- reminders: date-based nudges (birthdays, appointments, "remind me on …")
-
-1. Read data/inbox.md (raw speech-to-text; often imperfect).
-2. Classify each clear item (skip greetings, filler, tests, garbled ASR):
-   - reminder → due date matters more than a work action (birthdays, appointments, "remind me")
-   - short-term task → concrete action for the next few days
-   - project update → mentions an existing project by name/title, or asks to track long-term work
-   - new project → ONLY if the user clearly names a long-term project AND gives an absolute
-     local path (e.g. /Users/…). Never invent paths. If they want a project but give no path,
-     put a short-term task instead noting "needs project path".
-   - heavy request → anything requiring multi-step execution (writing reports/周报,
-     inspecting multiple repos, code changes). DO NOT execute it. Record it as a task
-     whose title summarizes the request, and move on. Keep total runtime under 2 minutes.
-3. For project updates on an existing project with a path:
-   - Read that directory lightly (README, recent git log if .git exists, recent file mtimes)
-     to ground a short progress note. Sandbox is disabled so those paths are readable.
-   - Update the matching project's progress / status / goal fields; set updated to now.
-4. Field shapes (keep existing ids; invent short unique ids for new items):
-   - project: id, title, path (absolute string), status ("active"|"paused"|"done"),
-     goal (string), progress (string), created (ISO), updated (ISO)
-   - task: id, title, due (YYYY-MM-DD|null), status ("open"|"done"), created (ISO), notes
-   - reminder: id, title, due (YYYY-MM-DD), status ("open"|"done"), created (ISO), notes
-   When fixing obvious ASR typos in titles, just write the corrected title. NEVER put ASR
-   correction chatter in notes (no "ASR：闲语→闲鱼", no "ASR: x -> y", no "heard as…").
-   Leave notes empty unless there is real user context beyond the title.
-5. First READ data/proposal.json, then write the merged result back with the write tool:
-   keep every existing item, merge new/changed items; do not duplicate clearly identical
-   open items; preserve projects/tasks/reminders keys even if empty; pretty JSON
-   (2-space indent). NEVER write proposal.json from scratch — it holds all existing data.
-   If you classified ANY item into tasks/reminders/projects, you MUST write
-   data/proposal.json in this run. Claiming you created a task/reminder without actually
-   writing the file is a FAILED run. If every item was filler/tests, skip this write.
-6. NEVER edit data/inbox.md or data/inbox-archive.md. The server verifies your
-   workspace changes, then appends the original note to the archive and clears the
-   inbox. Only write data/proposal.json.
-7. Do not ask questions. Do not edit app/, serve.py, or schedule/.
-8. Reply with one short line summarizing what you actually saved. If ALL notes are
-   filler/tests with no actionable items, reply exactly "No clear items; archived only."
-   If ALL requested items already exist unchanged, reply exactly
-   "No changes; items already exist." Never use either response for an unsaved item.
-"""
-
 PROGRESS_JOB = "project-progress"
 
 _job_queue: queue.Queue[tuple | None] = queue.Queue()
-_voice_queue: queue.Queue[dict | None] = queue.Queue()
 _status_lock = threading.Lock()
 _inbox_lock = threading.Lock()
 _workspace_lock = threading.RLock()
 _worker_start_lock = threading.Lock()
 _workspace_agent_active = False
 _worker_started = False
-_voice_worker_started = False
+_agenda_worker_started = False
+_agenda_wake = threading.Event()
 _whisper_model = None
 _whisper_lock = threading.Lock()
 _voice_pending = 0
-_job_seq = 0
 
 
 def now_iso() -> str:
@@ -521,168 +474,6 @@ def transcribe_audio(raw: bytes, filename: str = "audio.webm") -> str:
 
 
 MY_AGENT_DIR = ROOT / "my-agent"
-MY_AGENT_ENTRY = MY_AGENT_DIR / "dist" / "index.js"
-
-
-def verified_inbox_result(before: dict, output: str, workspace_path: Path) -> str:
-    """Validate persisted records, and describe changes without trusting agent prose."""
-    try:
-        after = json.loads(workspace_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise WorkspaceDataError(f"Agent did not save a valid workspace: {exc}") from exc
-    if not isinstance(after, dict):
-        raise WorkspaceDataError("Agent workspace must be a JSON object")
-    changes = []
-    for key in ("projects", "tasks", "reminders"):
-        records = after.get(key)
-        if not isinstance(records, list):
-            raise WorkspaceDataError(f"Agent workspace is missing the {key} array")
-        current = {}
-        for item in records:
-            if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not item["id"]:
-                raise WorkspaceDataError(f"Agent saved an invalid {key} record")
-            if item["id"] in current:
-                raise WorkspaceDataError(f"Agent saved duplicate {key} ids")
-            current[item["id"]] = item
-        previous = {item["id"]: item for item in before[key]}
-        if previous.keys() - current.keys():
-            raise WorkspaceDataError(f"Agent removed existing {key}; original data retained")
-        added = updated = 0
-        for item_id, item in current.items():
-            old_item = previous.get(item_id)
-            if item == old_item:
-                continue
-            required = set(old_item) if old_item is not None else (
-                {"id", "title", "path", "status", "goal", "progress", "created", "updated"}
-                if key == "projects" else {"id", "title", "due", "status", "created", "notes"}
-            )
-            if required - item.keys():
-                raise WorkspaceDataError(f"Agent removed or omitted required {key} fields")
-            if not isinstance(item.get("title"), str) or not item["title"].strip():
-                raise WorkspaceDataError(f"Agent saved a {key} record without a title")
-            allowed_statuses = ("active", "paused", "done") if key == "projects" else ("open", "done")
-            if item.get("status") not in allowed_statuses:
-                raise WorkspaceDataError(f"Agent saved a {key} record with an invalid status")
-            if key == "reminders" and item.get("due") is None and not (
-                old_item is not None and "due" in old_item and old_item["due"] is None
-            ):
-                raise WorkspaceDataError("Agent saved a reminder without a due date")
-            if key != "projects" and item.get("due") is not None:
-                try:
-                    due = item["due"]
-                    if not isinstance(due, str) or datetime.strptime(due, "%Y-%m-%d").strftime("%Y-%m-%d") != due:
-                        raise ValueError("expected YYYY-MM-DD")
-                except ValueError as exc:
-                    raise WorkspaceDataError(f"Agent saved an invalid {key} due date") from exc
-            if old_item is not None:
-                # Refreshing bookkeeping dates alone does not apply an inbox request.
-                meaningful_keys = (item.keys() | old_item.keys()) - {"created", "updated"}
-                if any(item.get(field) != old_item.get(field) for field in meaningful_keys):
-                    updated += 1
-            else:
-                added += 1
-        if added:
-            changes.append(f"{added} {key[:-1] if added == 1 else key} added")
-        if updated:
-            changes.append(f"{updated} {key[:-1] if updated == 1 else key} updated")
-    if changes:
-        return "Saved: " + ", ".join(changes) + "."
-    final_line = output.strip().splitlines()[-1] if output.strip() else ""
-    no_changes = {
-        "No clear items; archived only.": "No clear items; archived only. No workspace changes.",
-        "No changes; items already exist.": "No changes; items already exist. Note archived.",
-    }
-    if final_line in no_changes:
-        return no_changes[final_line]
-    raise WorkspaceDataError("Agent reported completion without saving any workspace changes")
-
-
-def run_personal_inbox_agent(note_preview: str, node: str) -> None:
-    """Let voice propose edits in scratch, then commit to Firstmate with CAS.
-
-    A failed or conflicting proposal never restores an old Firstmate snapshot.
-    Incoming notes remain queued until the proposal commits successfully.
-    """
-    global _workspace_agent_active
-    with _workspace_lock:
-        _workspace_agent_active = True
-    try:
-        snapshot = personal_snapshot()
-        before = snapshot['workspace']
-        with _inbox_lock:
-            original = INBOX.read_bytes()
-        with tempfile.TemporaryDirectory(prefix='my-voice-proposal-') as scratch:
-            root = Path(scratch)
-            (root / 'data').mkdir()
-            proposal = root / 'data/proposal.json'
-            prompt = AGENT_PROMPT + f'\nCurrent local date/time: {now_iso()}\n'
-            prompt += '\nThis is a temporary proposal workspace. Do not access or edit Firstmate files. The server validates and commits your proposal.\n'
-            for attempt in range(2):
-                atomic_write(proposal, json.dumps(before, ensure_ascii=False, indent=2) + '\n')
-                atomic_write(root / 'data/inbox.md', original)
-                write_status('running', 'Processing note into Firstmate personal context…', lastNote=note_preview)
-                proc = subprocess.run([node, str(MY_AGENT_ENTRY), prompt], cwd=root,
-                    capture_output=True, text=True, timeout=900,
-                    env={**os.environ, 'AGENT_WORKSPACE': str(root)})
-                out, err = (proc.stdout or '').strip(), (proc.stderr or '').strip()
-                if proc.returncode:
-                    raise RuntimeError(err or out or 'Voice agent failed')
-                try:
-                    summary = verified_inbox_result(before, out, proposal)
-                except WorkspaceDataError as exc:
-                    if attempt == 1:
-                        raise
-                    prompt += f'\nPrevious proposal was rejected: {exc}. Correct it and save the merged records.\n'
-                    continue
-                after = json.loads(proposal.read_text())
-                if after != before:
-                    personal_replace(after, snapshot['version'])
-                break
-        with _inbox_lock:
-            # New incoming notes use INBOX_PENDING; refuse unexpected manual edits.
-            if INBOX.read_bytes() != original:
-                raise WorkspaceConflict('Inbox changed during processing; context saved, note retained for review')
-            body = original.decode().removeprefix(INBOX_HEADER.rstrip()).strip()
-            archive = ARCHIVE.read_text() if ARCHIVE.exists() else '# Inbox archive\n'
-            if body:
-                archive = archive.rstrip() + '\n\n' + body + '\n'
-            atomic_write(ARCHIVE, archive)
-            atomic_write(INBOX, INBOX_HEADER)
-        write_status('done', summary, lastNote=note_preview, lastResult=out[-2000:])
-    except Exception as exc:
-        write_status('error', f'Note retained; Firstmate context was not rolled back: {str(exc)[-600:]}',
-                     lastNote=note_preview)
-    finally:
-        with _workspace_lock:
-            _workspace_agent_active = False
-
-
-def run_agent_once(
-    note_preview: str,
-    prompt: str = AGENT_PROMPT,
-) -> None:
-    global _workspace_agent_active
-    node = shutil.which("node")
-    if not node:
-        write_status(
-            "error",
-            "Node.js not found. Install Node, then restart serve.py.",
-            lastNote=note_preview,
-        )
-        return
-    if not MY_AGENT_ENTRY.is_file():
-        write_status(
-            "error",
-            "my-agent not built. Run `cd my-agent && npm install && npm run build`, then restart serve.py.",
-            lastNote=note_preview,
-        )
-        return
-
-    if prompt == AGENT_PROMPT:
-        run_personal_inbox_agent(note_preview, node)
-        return
-
-    write_status('error', 'Unsupported job; use the shared personal context update path.', lastNote=note_preview)
 
 
 def summarize_progress(inspections: list[dict]) -> dict[str, str]:
@@ -767,9 +558,7 @@ def run_queued_job(job: tuple) -> None:
     if job[1] == PROGRESS_JOB:
         run_progress_once(job[0])
     else:
-        if job[1] == AGENT_PROMPT:
-            stage_pending_inbox()
-        run_agent_once(*job)
+        raise ValueError('Unsupported job: agenda requests belong to Firstmate')
 
 
 def worker_loop() -> None:
@@ -802,8 +591,8 @@ def worker_loop() -> None:
 
 def enqueue_process(
     note_preview: str,
-    prompt: str = AGENT_PROMPT,
-    running_msg: str = "Note saved. Starting my-agent…",
+    prompt: str = PROGRESS_JOB,
+    running_msg: str = "Project progress check queued…",
 ) -> dict:
     global _worker_started
     with _worker_start_lock:
@@ -870,85 +659,41 @@ def inbox_cleared() -> bool:
     return body.strip() == ""
 
 
-def append_inbox_and_process(text: str) -> dict:
-    append_pending_inbox(text)
-    preview = text if len(text) <= 120 else text[:117] + "…"
-    return {
-        "ok": True,
-        "text": text,
-        # Inbox completion verifies persisted records before archiving the input.
-        "agent": enqueue_process(preview),
-    }
+def agenda_requests() -> AgendaRequests:
+    # Same fixed trusted home binding as the dashboard; never dictated configuration.
+    return AgendaRequests(DATA / '.agenda-requests', personal_store().home, transcribe_path)
 
 
-def voice_worker_loop() -> None:
-    global _voice_pending
+def agenda_worker_loop() -> None:
     while True:
-        job = _voice_queue.get()
-        if job is None:
-            _voice_queue.task_done()
-            break
-        path = job["path"]
-        job_id = job["id"]
+        _agenda_wake.clear()
         try:
-            write_status(
-                "transcribing",
-                f"Transcribing voice note… ({_voice_pending} in queue incl. current)",
-                lastJobId=job_id,
-            )
-            text = transcribe_path(path)
-            result = append_inbox_and_process(text)
-            write_status(
-                result["agent"].get("state", "queued"),
-                f"Heard: {text[:80]}{'…' if len(text) > 80 else ''}",
-                lastNote=text[:120],
-                lastTranscript=text,
-                lastJobId=job_id,
-            )
-        except Exception as exc:  # noqa: BLE001
-            write_status(
-                "error",
-                f"Voice job failed: {exc}",
-                lastJobId=job_id,
-                lastResult=traceback.format_exc()[-1500:],
-            )
-        finally:
-            with _status_lock:
-                _voice_pending = max(0, _voice_pending - 1)
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
-            _voice_queue.task_done()
+            agenda_requests().tick()
+        except Exception:
+            # Fail closed: retained requests remain recoverable, never announce done.
+            print('Agenda delivery unavailable; local requests retained.')
+        _agenda_wake.wait(10)
 
 
-def enqueue_voice(raw: bytes, filename: str = "audio.webm") -> dict:
-    global _voice_worker_started, _voice_pending, _job_seq
-    if not raw:
-        raise ValueError("empty audio body")
-    suffix = Path(filename).suffix or ".webm"
-    with tempfile.NamedTemporaryFile(
-        delete=False, suffix=suffix, dir=DATA / "tmp", prefix="voice-"
-    ) as tmp:
-        tmp.write(raw)
-        tmp_path = tmp.name
-    with _status_lock:
-        _job_seq += 1
-        job_id = f"v{_job_seq}"
-        _voice_pending += 1
-        pending = _voice_pending
+def start_agenda_worker() -> None:
+    global _agenda_worker_started
     with _worker_start_lock:
-        if not _voice_worker_started:
-            _voice_worker_started = True
-            t = threading.Thread(target=voice_worker_loop, name="my-voice-worker", daemon=True)
-            t.start()
-    _voice_queue.put({"id": job_id, "path": tmp_path, "filename": filename})
-    status = write_status(
-        "queued",
-        f"Voice queued ({pending} pending). You can record again now.",
-        lastJobId=job_id,
-    )
-    return {"ok": True, "jobId": job_id, "voicePending": pending, "status": status}
+        if not _agenda_worker_started:
+            _agenda_worker_started = True
+            threading.Thread(target=agenda_worker_loop, name='firstmate-outbox', daemon=True).start()
+    _agenda_wake.set()
+
+
+def append_inbox_and_process(text: str, identity=None) -> dict:
+    request = agenda_requests().submit(text=text, identity=identity)
+    start_agenda_worker()
+    return {'ok': True, 'text': text, 'request': request}
+
+
+def enqueue_voice(raw: bytes, filename: str = 'audio.webm', identity=None) -> dict:
+    request = agenda_requests().submit(audio=raw, filename=filename, identity=identity)
+    start_agenda_worker()
+    return {'ok': True, 'jobId': request['requestId'], 'request': request}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1009,6 +754,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, read_status())
             return
 
+        if path == '/api/agenda-requests':
+            try:
+                self._send_json(200, agenda_requests().snapshot())
+            except (WorkspaceDataError, OSError, ValueError) as exc:
+                self._send_json(500, {'ok': False, 'error': str(exc)})
+            return
+
         if path == "/api/health":
             self._send_json(
                 200,
@@ -1018,7 +770,7 @@ class Handler(BaseHTTPRequestHandler):
                     "whisperBackend": WHISPER_BACKEND,
                     "whisperModel": WHISPER_MODEL,
                     "appleSilicon": _IS_APPLE_SILICON,
-                    "agent": MY_AGENT_ENTRY.is_file(),
+                    "agendaOwner": "Firstmate",
                     "voicePending": _voice_pending,
                 },
             )
@@ -1026,6 +778,9 @@ class Handler(BaseHTTPRequestHandler):
 
         rel = path.lstrip("/")
         file_path = (ROOT / rel).resolve()
+        if (DATA / '.agenda-requests').resolve() in file_path.parents:
+            self._send(404, b'Not found', 'text/plain; charset=utf-8')
+            return
         if not str(file_path).startswith(str(ROOT)) or not file_path.is_file():
             self._send(404, b"Not found", "text/plain; charset=utf-8")
             return
@@ -1040,6 +795,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        if path in ('/api/voice', '/api/transcribe', '/api/inbox', '/api/agenda-requests/retry'):
+            port = self.server.server_address[1]
+            hosts = {f'127.0.0.1:{port}', f'localhost:{port}'}
+            origin = self.headers.get('Origin')
+            if self.headers.get('Host') not in hosts or (origin and origin not in {f'http://{host}' for host in hosts}):
+                self._send_json(403, {'ok': False, 'error': 'Local My origin required'})
+                return
 
         if path in ("/api/voice", "/api/transcribe"):
             # Async by default: save audio, return immediately, process in background.
@@ -1059,12 +821,21 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json(500, {"ok": False, "error": str(exc)})
                     return
                 if process:
-                    self._send_json(200, append_inbox_and_process(text))
+                    try:
+                        self._send_json(200, append_inbox_and_process(text, self.headers.get('X-Request-ID')))
+                    except RequestConflict as exc:
+                        self._send_json(409, {'ok': False, 'error': str(exc)})
+                    except (ValueError, WorkspaceDataError, OSError) as exc:
+                        self._send_json(400, {'ok': False, 'error': str(exc)})
                 else:
                     self._send_json(200, {"ok": True, "text": text})
                 return
             try:
-                self._send_json(200, enqueue_voice(raw, filename))
+                self._send_json(200, enqueue_voice(raw, filename, self.headers.get('X-Request-ID')))
+            except RequestConflict as exc:
+                self._send_json(409, {'ok': False, 'error': str(exc)})
+            except ValueError as exc:
+                self._send_json(400, {'ok': False, 'error': str(exc)})
             except Exception as exc:  # noqa: BLE001
                 self._send_json(500, {"ok": False, "error": str(exc)})
             return
@@ -1075,16 +846,36 @@ class Handler(BaseHTTPRequestHandler):
             except json.JSONDecodeError:
                 self._send_json(400, {"ok": False, "error": "invalid JSON"})
                 return
-            text = (payload.get("text") or "").strip()
-            if not text:
+            if not isinstance(payload, dict):
+                self._send_json(400, {'ok': False, 'error': 'body must be an object'})
+                return
+            text = payload.get('text')
+            if not isinstance(text, str) or not text.strip():
                 self._send_json(400, {"ok": False, "error": "text required"})
                 return
             process = payload.get("process", True)
             if process:
-                self._send_json(200, append_inbox_and_process(text))
+                try:
+                    self._send_json(200, append_inbox_and_process(text, payload.get('requestId')))
+                except RequestConflict as exc:
+                    self._send_json(409, {'ok': False, 'error': str(exc)})
+                except (ValueError, WorkspaceDataError, OSError) as exc:
+                    self._send_json(400, {'ok': False, 'error': str(exc)})
             else:
                 append_pending_inbox(text)
                 self._send_json(200, {"ok": True, "appended": text})
+            return
+
+        if path == '/api/agenda-requests/retry':
+            try:
+                payload = self._read_json()
+                if not isinstance(payload, dict):
+                    raise ValueError('body must be an object')
+                request = agenda_requests().retry(payload.get('requestId'))
+                start_agenda_worker()
+                self._send_json(200, {'ok': True, 'request': request})
+            except (ValueError, WorkspaceDataError, OSError) as exc:
+                self._send_json(400, {'ok': False, 'error': str(exc)})
             return
 
         if path == "/api/progress":
@@ -1133,6 +924,7 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     load_dotenv()
     ensure_data()
+    start_agenda_worker()  # Resume accepted audio and delivery after a server restart.
     # Warm ASR in background so the first voice note is faster.
     threading.Thread(target=warm_asr, name="asr-warmup", daemon=True).start()
     # Daily project-progress git inspection.
@@ -1149,13 +941,7 @@ def main() -> None:
         f"Project progress check: daily at {PROGRESS_HOUR:02d}:{PROGRESS_MINUTE:02d} "
         "(override with MY_PROGRESS_HOUR/MY_PROGRESS_MINUTE)"
     )
-    if MY_AGENT_ENTRY.is_file():
-        print(f"Auto-process via: node {MY_AGENT_ENTRY}")
-    else:
-        print(
-            "WARNING: my-agent not built — transcription will still work. "
-            "Build it with `cd my-agent && npm install && npm run build`."
-        )
+    print('Voice agenda edits: durable local requests to Firstmate; no independent editing agent.')
     try:
         server.serve_forever()
     except KeyboardInterrupt:

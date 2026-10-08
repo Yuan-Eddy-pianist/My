@@ -92,11 +92,11 @@ export function todayKey() {
   return `${y}-${m}-${day}`;
 }
 
-export async function postInbox(text, { process = true } = {}) {
+export async function postInbox(text, { process = true, requestId = crypto.randomUUID() } = {}) {
   const res = await fetch("/api/inbox", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, process }),
+    body: JSON.stringify({ text, process, requestId }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -623,11 +623,49 @@ export function setupVoice({
   let lastMeterPct = -1;
   let preferredDeviceId = "";
   let pollTimer = 0;
-  let lastSeenTranscript = "";
   let clientQueued = 0;
   let flashTimer = 0;
-  let wasBusy = false;
-  let prevState = "";
+  const seenOutcomes = new Set();
+  let failedUpload = null;
+  let retryRequestId = null;
+  const retryBtn = document.createElement('button');
+  retryBtn.type = 'button';
+  retryBtn.className = 'btn-ghost btn-tiny';
+  retryBtn.textContent = '重试';
+  retryBtn.hidden = true;
+  statusEl?.parentElement?.append(retryBtn);
+  const history = document.createElement('details');
+  history.className = 'agenda-recent';
+  const historyTitle = document.createElement('summary');
+  const historyList = document.createElement('ul');
+  history.append(historyTitle, historyList);
+  statusEl?.parentElement?.after(history);
+  history.hidden = true;
+  retryBtn.addEventListener('click', async () => {
+    retryBtn.hidden = true;
+    if (failedUpload) {
+      const { blob, mime, requestId } = failedUpload;
+      await enqueueBlob(blob, mime, requestId);
+    } else if (retryRequestId) {
+      try {
+        const res = await fetch('/api/agenda-requests/retry', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId: retryRequestId }),
+        });
+        if (!res.ok) throw new Error('retry failed');
+        ensurePolling();
+      } catch {
+        feedback('重试未送达；请求仍保存在本机。', 'error');
+        retryBtn.hidden = false;
+      }
+    }
+  });
+
+  async function fetchAgendaStatus() {
+    const res = await fetch('/api/agenda-requests');
+    if (!res.ok) throw new Error('Agenda status unavailable');
+    return res.json();
+  }
 
   function feedback(text, state = "idle") {
     if (statusEl) {
@@ -709,34 +747,37 @@ export function setupVoice({
   }
 
   function refreshStatusLine(s) {
-    if (listening) return;
-    const state = s.state || "idle";
-    if (s.lastTranscript && s.lastTranscript !== lastSeenTranscript) {
-      lastSeenTranscript = s.lastTranscript;
-      if (onProcessed) onProcessed(s);
-    }
-
-    // Keep the text status and icon feedback in sync with the voice pipeline.
-    const busy =
-      clientQueued > 0 ||
-      (s.voicePending || 0) > 0 ||
-      state === "transcribing" ||
-      state === "queued" ||
-      state === "running";
+    if (listening || failedUpload) return;
+    const requests = s.requests || [];
+    const latest = requests[0];
+    const labels = { applied: '已应用', no_change: '无需修改', clarification: '需要确认', rejected: '未执行' };
+    history.hidden = requests.length === 0;
+    historyTitle.textContent = `最近语音请求（${requests.length}）`;
+    historyList.replaceChildren(...requests.map((request) => {
+      const item = document.createElement('li');
+      item.textContent = `${labels[request.state] || '处理中'}：${request.message}`;
+      return item;
+    }));
+    const busy = clientQueued > 0 || requests.some((r) => r.state === 'transcribing');
     setThinking(busy);
-
-    if (!busy && state === "error") {
-      // Only react to a fresh error transition, never a stale one on page load.
-      if (wasBusy || (prevState && prevState !== "error")) {
-        flashIcon("error-flash", 3200);
+    for (const request of requests) {
+      if (['applied', 'no_change'].includes(request.state) && !seenOutcomes.has(request.requestId)) {
+        seenOutcomes.add(request.requestId);
+        // A durable actual outcome, not ASR or receipt acknowledgement, refreshes lists.
+        if (onProcessed) onProcessed(request);
+        if (request === latest && request.state === 'applied') {
+          flashIcon('done-flash', 1800, request.message);
+        }
       }
-    } else if (!busy && wasBusy && state === "done") {
-      flashIcon("done-flash", 1800);
-      playChime([784, 988], { volume: 0.22 });
-      if (onProcessed) onProcessed(s);
     }
-    prevState = state;
-    wasBusy = busy;
+    if (!latest) return;
+    const prefix = labels[latest.state] ? labels[latest.state] + '：' : '';
+    const pending = s.pending > 0 ? `（${s.pending} 条等待处理）` : '';
+    feedback(prefix + latest.message + pending,
+      ['transcription_error', 'rejected', 'outcome_unavailable'].includes(latest.state) ? 'error' : latest.state);
+    const retryable = requests.find((r) => r.state === 'transcription_error');
+    retryRequestId = retryable?.requestId || null;
+    retryBtn.hidden = !retryRequestId;
   }
 
   function stopPolling() {
@@ -757,14 +798,11 @@ export function setupVoice({
         return;
       }
       try {
-        const s = await fetchAgentStatus();
+        const s = await fetchAgendaStatus();
         errors = 0;
         wdCount("poll");
         refreshStatusLine(s);
-        const idle =
-          (s.voicePending || 0) === 0 &&
-          (s.agentPending || 0) === 0 &&
-          (s.state === "idle" || s.state === "done" || s.state === "error");
+        const idle = (s.pending || 0) === 0;
         if (idle && clientQueued === 0 && !listening) {
           stopPolling();
         }
@@ -775,14 +813,14 @@ export function setupVoice({
         if (errors >= 10) {
           stopPolling();
           if (!listening) {
-            flashIcon("error-flash", 3200);
+            feedback('连接中断；已接收的请求仍保存在本机，稍后可核对结果。', 'error');
           }
         }
       }
-    }, 900);
+    }, 1500);
   }
 
-  async function enqueueBlob(blob, mime) {
+  async function enqueueBlob(blob, mime, requestId = crypto.randomUUID()) {
     clientQueued += 1;
     // Instant feedback on send — don't wait for the first poll tick.
     setThinking(true);
@@ -793,6 +831,7 @@ export function setupVoice({
         headers: {
           "Content-Type": mime,
           "X-Filename": mime.includes("mp4") ? "audio.m4a" : "audio.webm",
+          'X-Request-ID': requestId,
         },
         body: blob,
       });
@@ -800,10 +839,15 @@ export function setupVoice({
       if (!res.ok) {
         throw new Error(data.error || `上传失败 (${res.status})`);
       }
+      failedUpload = null;
+      retryBtn.hidden = true;
+      feedback(data.request?.message || '请求已保存在本机，等待 Firstmate。', data.request?.state || 'pending');
     } catch (err) {
       wdEvent("recErr", "upload: " + (err?.message || String(err)));
       setThinking(false);
-      flashIcon("error-flash", 3200, "发送失败，请检查连接后重试");
+      failedUpload = { blob, mime, requestId };
+      retryBtn.hidden = false;
+      flashIcon('error-flash', 3200, '发送未确认；点击重试会使用同一请求，不重复提交。');
     } finally {
       clientQueued = Math.max(0, clientQueued - 1);
     }
@@ -848,6 +892,10 @@ export function setupVoice({
   micBtn.addEventListener("click", async () => {
     // Unlock WebAudio synchronously inside the gesture, before any await.
     unlockChime();
+    if (failedUpload) {
+      feedback('上一条发送尚未确认，请先点击重试；不要关闭此页。', 'error');
+      return;
+    }
     if (listening) {
       listening = false;
       micBtn.classList.remove("listening");
@@ -917,19 +965,17 @@ export function setupVoice({
   // Re-sync on page load: if the pipeline is already working (e.g. the user
   // switched between 专注/工作台 mid-run), resume the spinner feedback and
   // polling so the indicator survives page switches. Stale errors stay silent.
-  fetchAgentStatus()
-    .then((s) => {
+  function resumeStatus() {
+    fetchAgendaStatus().then((s) => {
       refreshStatusLine(s);
-      const state = s.state || "idle";
-      const busy =
-        (s.voicePending || 0) > 0 ||
-        (s.agentPending || 0) > 0 ||
-        state === "transcribing" ||
-        state === "queued" ||
-        state === "running";
-      if (busy) ensurePolling();
-    })
-    .catch(() => {});
+      if (s.pending > 0) ensurePolling();
+    }).catch(() => {});
+  }
+  resumeStatus();
+  window.addEventListener('focus', resumeStatus);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) resumeStatus();
+  });
 }
 
 export function dueMeta(due) {
