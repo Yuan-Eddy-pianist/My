@@ -92,6 +92,9 @@ Codex per-skill links leave `~/.codex/skills/.system` in place. Re-run the insta
 
 Keep one repo. A second “skills-only” GitHub repo would drift.
 
+The approved Codex-only skill selection is backed up separately from the shared
+skill files. See [Codex skill cleanup and restoration](docs/codex-skill-cleanup.md).
+
 ### Project-progress summarizer account / usage limit
 
 The project-progress summarizer in `my-agent` uses whichever Cursor account authenticates it. Voice agenda requests go to Firstmate and use its existing provider configuration; local Whisper needs no account.

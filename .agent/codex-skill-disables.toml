@@ -1,0 +1,98 @@
+# Codex-only skill selection saved on 2026-10-21.
+# This is a settings snapshot, not an automatically loaded Codex config.
+# Merge these entries into ~/.codex/config.toml; preserve all other settings.
+# Adjust the clone path below if My is installed elsewhere, then restart Codex.
+# Keep shared skill files for Cursor. canvas and other personal skills stay enabled.
+# See docs/codex-skill-cleanup.md for scope and restoration instructions.
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/autopilot/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/create-hook/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/goal/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/loop/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/new-repo/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/onboard/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/origin/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/rename-chat/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/review/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/review-bugbot/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/review-security/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/share/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/shell/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/split-to-prs/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/statusline/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/update-cursor-settings/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/automate/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/create-rule/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/create-skill/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/create-subagent/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/migrate-to-skills/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/sdk/SKILL.md"
+enabled = false
+
+[[skills.config]]
+path = "/Users/eddy/Desktop/My/.agent/skills/update-cli-config/SKILL.md"
+enabled = false
