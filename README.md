@@ -46,7 +46,7 @@ Uninstall:
 
 ### Personal agent skills (any machine)
 
-This repo is the source of truth for personal skills. Inbox and todos are not in git, so a new machine only needs `git`:
+This repo stores personally selected skills in `.agent/skills/`. Codex and Cursor supplied skills stay in their application-managed locations. See [personal skill layout](docs/personal-skills-layout.md). Inbox and todos are not in git, so a new machine only needs `git`:
 
 ```bash
 git clone https://github.com/Yuan-Eddy-pianist/My.git ~/My
@@ -58,7 +58,7 @@ That is the whole bootstrap. You get the app files too; they sit unused if you o
 Consume-only (no clone, copies into each harness via the skills CLI):
 
 ```bash
-npx skills add Yuan-Eddy-pianist/My/.cursor/personal-skills -g
+npx skills add Yuan-Eddy-pianist/My/.agent/skills -g
 ```
 
 That reads **GitHub**, not this folder. If you see `No skills found`, the remote is still empty — push first (`git push -u origin main`), then retry. Do not run the `-g` command on this Mac if you already use `./install-skills.sh` (it would replace the `~/.cursor/skills` symlink).
@@ -82,7 +82,7 @@ Use the clone if you will edit skills and push them back. Use `npx` if that mach
 | `4` / `opencode` | OpenCode | `~/.config/opencode/skills` |
 | `a` / `all` | all of the above | |
 
-Codex per-skill links leave `~/.codex/skills/.system` in place. Re-run the installer if you move the folder.
+Codex personal aliases leave system and plugin skills in place. Its `canvas` link points directly to Cursor's managed `~/.cursor/skills-cursor/canvas` package. Re-run the installer if you move the folder. Existing conflicting individual skill paths are preserved.
 
 ```bash
 ./uninstall-skills.sh          # ask which to remove
@@ -92,8 +92,6 @@ Codex per-skill links leave `~/.codex/skills/.system` in place. Re-run the insta
 
 Keep one repo. A second “skills-only” GitHub repo would drift.
 
-The approved Codex-only skill selection is backed up separately from the shared
-skill files. See [Codex skill cleanup and restoration](docs/codex-skill-cleanup.md).
 
 ### Project-progress summarizer account / usage limit
 
@@ -169,7 +167,8 @@ schedule/
   start-weekday.sh   # start server + open workspace
   install-launchd.sh
   uninstall-launchd.sh
-.cursor/personal-skills/  # personal skills (after ./install-skills.sh)
+.agent/skills/           # canonical personal skill source
+.cursor/personal-skills  # compatibility link to .agent/skills
 ```
 
 ## Notes

@@ -1,138 +1,52 @@
 #!/bin/zsh
-# Stop this clone from being the personal-skills path for the harnesses you pick.
-# Only removes symlinks that still point at this repo.
-#
-#   ./uninstall-skills.sh                 # ask which ones
-#   ./uninstall-skills.sh cursor claude   # those only
-#   ./uninstall-skills.sh all
+# Remove only this clone's links and its Codex-to-Cursor canvas bridge.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PROG="${0##*/}"
-TARGET="$ROOT/.cursor/personal-skills"
-ALL_HARNESSES=(cursor claude codex opencode)
-
-usage() {
-  cat <<EOF
-Usage: $PROG [harness ...]
-
-  1  cursor     ~/.cursor/skills
-  2  claude     ~/.claude/skills
-  3  codex      ~/.agents/skills  and  ~/.codex/skills/<skill>
-  4  opencode   ~/.config/opencode/skills
-  a  all
-
-Examples:
-  $PROG
-  $PROG cursor
-  $PROG 1 3
-  $PROG all
-EOF
-}
-
-normalize() {
-  case "$1" in
-    1|cursor) print -r -- cursor ;;
-    2|claude|claude-code) print -r -- claude ;;
-    3|codex|agents) print -r -- codex ;;
-    4|opencode) print -r -- opencode ;;
-    a|all) print -r -- all ;;
-    *)
-      echo "unknown harness: $1" >&2
-      usage >&2
-      exit 1
-      ;;
-  esac
-}
-
-choose_harnesses() {
-  local raw=("$@")
-  if (( ${#raw} == 0 )); then
-    if [[ ! -t 0 ]]; then
-      usage >&2
-      exit 1
-    fi
-    echo "Remove this clone as personal skills for which harnesses?"
-    echo
-    echo "  1) Cursor     ~/.cursor/skills"
-    echo "  2) Claude     ~/.claude/skills"
-    echo "  3) Codex      ~/.agents/skills  and  ~/.codex/skills/<skill>"
-    echo "  4) OpenCode   ~/.config/opencode/skills"
-    echo "  a) all"
-    echo
-    echo -n "Enter numbers, names, or a (e.g. 1 3 or cursor claude): "
-    local line
-    read -r line
-    raw=(${=line})
-    if (( ${#raw} == 0 )); then
-      echo "nothing selected" >&2
-      exit 1
-    fi
-  fi
-
-  local item mapped chosen=()
-  for item in "${raw[@]}"; do
-    mapped="$(normalize "$item")"
-    if [[ "$mapped" == all ]]; then
-      CHOSEN=("${ALL_HARNESSES[@]}")
-      return
-    fi
-    chosen+=("$mapped")
-  done
-  CHOSEN=("${(u)chosen[@]}")
-}
+TARGET="$ROOT/.agent/skills"
+LEGACY_TARGET="$ROOT/.cursor/personal-skills"
+source "$ROOT/skills-common.zsh"
 
 unlink_if_ours() {
-  local link="$1"
-  local expected="$2"
+  local link="$1" expected="$2"
+  if same_target "$link" "$expected"; then
+    rm "$link"
+    echo "removed $link"
+  fi
+}
 
-  if [[ ! -L "$link" ]]; then
-    return 0
-  fi
-  local current
-  current="$(readlink "$link")"
-  if [[ "$current" != "$expected" ]]; then
-    echo "leave $link (points at $current)"
-    return 0
-  fi
-  rm "$link"
-  echo "removed $link"
+unlink_root() {
+  unlink_if_ours "$1" "$TARGET"
+  unlink_if_ours "$1" "$LEGACY_TARGET"
 }
 
 uninstall_harness() {
   case "$1" in
-    cursor) unlink_if_ours "$HOME/.cursor/skills" "$TARGET" ;;
-    claude) unlink_if_ours "$HOME/.claude/skills" "$TARGET" ;;
-    opencode) unlink_if_ours "$HOME/.config/opencode/skills" "$TARGET" ;;
+    cursor) unlink_root "$SKILLS_USER_ROOT/.cursor/skills" ;;
+    claude) unlink_root "$SKILLS_USER_ROOT/.claude/skills" ;;
+    opencode) unlink_root "$SKILLS_USER_ROOT/.config/opencode/skills" ;;
     codex)
-      unlink_if_ours "$HOME/.agents/skills" "$TARGET"
-      if [[ -d "$HOME/.codex/skills" ]]; then
-        local skill
-        for skill in "$TARGET"/*(N/); do
-          unlink_if_ours "$HOME/.codex/skills/$(basename "$skill")" "$skill"
-        done
-      fi
+      unlink_root "$SKILLS_USER_ROOT/.agents/skills"
+      local skill
+      for skill in "$TARGET"/*(N/); do
+        [[ "${skill:t}" == .* || ! -f "$skill/SKILL.md" ]] && continue
+        unlink_if_ours "$SKILLS_USER_ROOT/.codex/skills/${skill:t}" "$skill"
+        unlink_if_ours "$SKILLS_USER_ROOT/.codex/skills/${skill:t}" "$LEGACY_TARGET/${skill:t}"
+      done
+      unlink_if_ours "$SKILLS_USER_ROOT/.codex/skills/canvas" "$SKILLS_USER_ROOT/.cursor/skills-cursor/canvas"
       ;;
   esac
 }
-
-# Older installer created this; drop it if it still points here.
-if [[ -L "$HOME/.gemini/skills" && "$(readlink "$HOME/.gemini/skills")" == "$TARGET" ]]; then
-  rm "$HOME/.gemini/skills"
-  echo "removed leftover $HOME/.gemini/skills"
-fi
 
 if [[ "${1:-}" == -h || "${1:-}" == --help || "${1:-}" == help ]]; then
   usage
   exit 0
 fi
-
 CHOSEN=()
-choose_harnesses "$@"
-
+choose_harnesses "Remove this clone as personal skills for which harnesses?" "$@"
 for harness in "${CHOSEN[@]}"; do
   echo "== $harness =="
   uninstall_harness "$harness"
 done
-
 echo "Done."

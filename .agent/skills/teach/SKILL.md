@@ -31,7 +31,7 @@ The repository being learned is the **learning workspace**. Store generated stat
 - `.teach/assets/*`: reusable stylesheets, quiz widgets, simulators, and diagram helpers shared by generated HTML.
 - `.teach/NOTES.md`: lightweight observations about what helped, what confused the learner, and how future teaching should adapt.
 
-Create files and directories lazily. Do not scaffold empty artifacts merely to complete the tree.
+Create files and directories lazily. Do not scaffold empty artifacts merely to complete the tree. Mission, learner profile, curriculum state, learning records, resources and teaching notes support the agent's continuity; keep this bookkeeping out of learner-facing navigation unless the learner asks to inspect it.
 
 ## Load the selected explanation sources first
 
@@ -120,7 +120,9 @@ Prefer lessons that answer questions such as:
 
 Begin with the local behavior and its purpose, then explain the relevant implementation. Introduce background at the point where it clarifies the code. Include a concrete mistake or failure mode. End with a small authentic exercise and a feedback path. Avoid answer choices whose wording or formatting reveals the answer; exact word-count matching is unnecessary.
 
-Lessons should be clean, readable, printable HTML with restrained visual design. Reuse `.teach/assets/` before creating new components. A shared stylesheet is the first reusable asset worth creating. Link lessons to related lessons and canonical reference pages. After creating a lesson, show it in the app when possible.
+Lessons and general explanations must be plain, readable, printable HTML with restrained visual design. Reuse `.teach/assets/` before creating new components. A shared stylesheet is the first reusable asset worth creating. Link lessons to related lessons and canonical reference pages. Open the saved HTML directly in the browser when possible and give the learner its direct file link/path. Do not wrap, host or present tutorials through Lavish; reserve Lavish for production pages.
+
+An opening page is optional. When useful, make it a learner-facing introduction to this teaching section: what the local system does, what the section will explain, a proposed teaching sequence, and a contents list with descriptive links to available lessons and references. Planned lessons may appear as clearly labeled, unlinked future topics; do not imply they already exist. Begin actual teaching promptly. If an opening page adds no useful orientation, open the first lesson directly. Never substitute a directory of durable learning context, agent bookkeeping, delivery status or tool lifecycle details for an introduction. Keep necessary source provenance concise and secondary to the explanation.
 
 ## Build durable references
 

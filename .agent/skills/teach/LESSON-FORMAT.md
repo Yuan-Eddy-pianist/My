@@ -19,7 +19,7 @@ Use the sections that serve the lesson; preserve their learning sequence rather 
 
 ## HTML requirements
 
-- Produce valid standalone HTML with a descriptive `<title>`, semantic landmarks, and accessible heading order.
+- Produce valid standalone plain HTML with a descriptive `<title>`, semantic landmarks, and accessible heading order. Follow SKILL.md's presentation and optional opening-page contract; deliver the saved HTML directly, without a Lavish wrapper.
 - Link the shared stylesheet from `../assets/` rather than duplicating styles. Create the stylesheet when the first lesson is written.
 - Prefer readable typography, generous whitespace, restrained color, and useful diagrams over decorative UI. Ensure printing remains clean.
 - Use repository-relative paths and symbol names. From `.teach/lessons/`, a source link normally begins with `../../`.
